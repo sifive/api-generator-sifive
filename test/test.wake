@@ -1,0 +1,63 @@
+tuple Test input output result report =
+  global Input:    input
+  global Runner:   input  => output
+  global Checker:  output => result # check for pass/fail
+  global Reporter: result => report # print results
+
+global def runTest    test = test.getTestRunner   test.getTestInput
+global def checkTest  test = test.getTestChecker  test.runTest
+global def reportTest test = test.getTestReporter test.checkTest
+
+
+global def makeBlackBoxDUTHook name hook =
+  def wrapper dut =
+    def findOpt = find (_ ==~ name) dut.getDUTBlackBoxes
+    match findOpt
+      None               = None
+      Some (Pair bbox _) = Some (hook dut)
+  wrapper
+
+global def makeBlackBoxHook name hook =
+  def wrapper dut =
+    def findOpt = find (_ ==~ name) dut.getDUTBlackBoxes
+    match findOpt
+      None               = None
+      Some (Pair bbox _) = Some hook
+  wrapper
+
+global def makeObjectModelHook objectModelQuery hook =
+  def wrapper dut =
+    match dut.getDUTObjectModel.objectModelQuery
+      None      = (_)
+      Some comp = hook comp
+  wrapper
+
+tuple DUTTest =
+  global Name:       String
+  global Filter:     DUT => Boolean
+  global Program:    TestProgramPlan
+  global Bootloader: SimBootloader
+  global Plusargs:   List NamedArg
+
+global def makeDUTTest name dutFilter program bootloader plusargs =
+  DUTTest name dutFilter program bootloader plusargs
+
+global def dutFilterISAExtentions extensions dut =
+  def isa = dut.getDUTObjectModel // `components` // `isa`
+  def hasExt ext =
+    def matcher = match _
+      JObject pairs = exists (ext ==^ _.getPairFirst) pairs
+      _             = False
+    match (isa /| matcher)
+      JArray Nil = False
+      _          = True
+  extensions
+  | map (replace `[iI]` "base")
+  | map hasExt
+  | foldl (_ && _) True
+
+
+global def dutTestRequireISAExtensions extensions dutTest =
+  def requireExtentions oldFilter dut =
+    oldFilter dut && dutFilterISAExtentions extensions dut
+  editDUTTestFilter requireExtentions dutTest

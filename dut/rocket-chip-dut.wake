@@ -1,0 +1,192 @@
+tuple ScalaBlock =
+  global Module: ScalaModule
+  global Config: String
+
+global def makeScalaBlock module config =
+  ScalaBlock module config
+
+tuple RocketChipDUTPlan =
+  global Testharness:      String
+  global Configs:          List String
+  global Name:             String
+  global ScalaModules:     List ScalaModule
+  global ExtraSources:     List Path
+  global FirrtlTransforms: List String
+
+tuple RuntimeRocketChipDUTArgs =
+  global FirrtlDir:  Path
+  global VerilogDir: Path
+
+global def makeRuntimeRocketChipDUTArgs firrtlDir verilogDir =
+  RuntimeRocketChipDUTArgs firrtlDir verilogDir
+
+def listBlackBoxes =
+  def version = firrtlScalaModule.getScalaModuleScalaVersion
+  def dir = simplify "{here}/.."
+  makeScalaModule "listBlackBoxes" dir version
+  | setScalaModuleSourceDirs ("src", Nil)
+  | setScalaModuleDeps (firrtlScalaModule, Nil)
+
+
+global def getRocketChipDUTPlanProject dut =
+  def deps = dut.getRocketChipDUTPlanScalaModules
+  def version = rocketchipScalaModule.getScalaModuleScalaVersion
+  makeScalaModule dut.getRocketChipDUTPlanName here version
+  | setScalaModuleDeps (rocketchipScalaModule, listBlackBoxes, deps)
+
+global def makeRocketChipDUTPlan name module testharness config =
+  RocketChipDUTPlan
+  testharness    # Testharness  String
+  (config, Nil)  # Configs      List String
+  name           # Name         String
+  (module, Nil)  # ScalaModules List ScalaModules
+  Nil
+  Nil
+
+global def addRocketChipDUTPlanScalaBlock scalaBlock plan =
+  plan
+  | editRocketChipDUTPlanConfigs (_ ++ (scalaBlock.getScalaBlockConfig, Nil))
+  | editRocketChipDUTPlanScalaModules (_ ++ (scalaBlock.getScalaBlockModule, Nil))
+
+global def getRocketChipDUTObjectModel = getDUTObjectModel
+global def getRocketChipDUTVsrcs       = getDUTVsrcs
+global def getRocketChipDUTBlackBoxes  = getDUTBlackBoxes
+global def getRocketChipDUTTopModule   = getDUTTopModule
+global def getRocketChipDUTDTS         = getDUTDTS
+
+def getTestharnessTopModule testharness = (tokenize `\.` testharness).reverse.head
+
+global def rocketChipDUTMaker dutPlan userArgs =
+  def rocketOutputs = doRocketGenerate dutPlan userArgs
+  def firrtlOutputs = doFirrtlCompile dutPlan userArgs rocketOutputs
+  def vlsiMemGen    = doVLSIMemGen dutPlan userArgs firrtlOutputs
+
+  def firrtlFile = rocketOutputs.getRocketChipGeneratorOutputsFirrtlFile
+  def annoFile = rocketOutputs.getRocketChipGeneratorOutputsFirrtlAnnoFile
+  def objectModelResult = match rocketOutputs.getRocketChipGeneratorOutputsObjectModelFile
+    None        = Fail (makeError "No object model file found!")
+    Some omFile = parseJSONFile omFile
+  def vsrcs = vlsiMemGen, firrtlOutputs.getInternalFirrtlOutputsVsrcs
+  def blackboxes = firrtlOutputs.getInternalFirrtlOutputsBlackBoxes
+  def allOutputs = rocketOutputs.getRocketChipGeneratorOutputsAllOutputs
+  def topModuleOpt = dutPlan.getRocketChipDUTPlanTestharness.getTestharnessTopModule
+  def dts = rocketOutputs.getRocketChipGeneratorOutputsDTS
+
+  match objectModelResult topModuleOpt
+    (Pass objectModel) (Some topModule) =
+      def name = dutPlan.getRocketChipDUTPlanName
+      def configs = dutPlan.getRocketChipDUTPlanConfigs
+      makeDUT name configs objectModel vsrcs topModule blackboxes dts None
+      | setDUTSources allOutputs
+      | Pass
+    (Fail e) _ = Fail e
+    _ None = Fail (makeError "unable to infer top module for {dutPlan.getRocketChipDUTPlanTestharness}")
+
+def doRocketGenerate dutPlan userArgs =
+  def firrtlDir = userArgs.getRuntimeRocketChipDUTArgsFirrtlDir
+  def jars = scalaModuleClasspath dutPlan.getRocketChipDUTPlanProject
+  def configs = dutPlan.getRocketChipDUTPlanConfigs
+  def testharness = dutPlan.getRocketChipDUTPlanTestharness
+
+  makeRocketChipGeneratorOptions jars firrtlDir testharness configs
+  | runRocketChipGenerator
+
+def doVLSIMemGen dutPlan userArgs firrtlOutputs =
+  def verilogDir = userArgs.getRuntimeRocketChipDUTArgsVerilogDir
+  def firrtlVerilogOutputs = firrtlOutputs.getInternalFirrtlOutputsVsrcs
+  def vlsiMemGenOutput =
+    def outputConf = firrtlOutputs.getInternalFirrtlOutputsConfFile
+    def outputFile =
+      "{verilogDir.getPathName}/{dutPlan.getRocketChipDUTPlanName}.behav_srams.v"
+    makeVLSIMemGenOptions outputConf outputFile | rocket_vlsi_mem_gen
+
+  vlsiMemGenOutput
+
+tuple InternalFirrtlOutputs =
+  ConfFile:   Path
+  BlackBoxes: List String
+  Vsrcs:      List Path
+
+def doFirrtlCompile dutPlan userArgs rocketOutputs = memoize 0 (
+  def firrtlDir = userArgs.getRuntimeRocketChipDUTArgsFirrtlDir
+  def verilogDir = userArgs.getRuntimeRocketChipDUTArgsVerilogDir
+  def jars = scalaModuleClasspath dutPlan.getRocketChipDUTPlanProject
+  def topName = getTestharnessTopModule dutPlan.getRocketChipDUTPlanTestharness | getOrElse ''
+
+  def firrtlFile = rocketOutputs.getRocketChipGeneratorOutputsFirrtlFile
+  def annoFile = rocketOutputs.getRocketChipGeneratorOutputsFirrtlAnnoFile
+  def main    = "firrtl.Driver"
+  def confFile = "{firrtlDir.getPathName}/behav_srams.conf"
+  def blackBoxListFile = "{firrtlDir.getPathName}/blackboxes.txt"
+
+  def cmdlineAnnoFile =
+    def name = "{firrtlDir.getPathName}/cmdline_annos.json"
+    def contents =
+      "[",
+      "  \{",
+      "    \"class\":\"sifive.freedom.firrtl.BlackBoxListAnnotation\",",
+      "    \"filename\":\"{blackBoxListFile}\"",
+      "  \}",
+      "]",
+      Nil
+    catWith "\n" contents | write name
+
+  def cmdline =
+    def customFirrtlTransforms =
+      "sifive.freedom.firrtl.ListBlackBoxesTransform",
+      dutPlan.getRocketChipDUTPlanFirrtlTransforms
+    def logLevel = "info"
+    def fct = "-fct", "{catWith "," customFirrtlTransforms}", Nil
+    def classpath = jars | map getPathName | catWith ":"
+    which "java", "-cp", classpath, main,
+    "-i",             firrtlFile.getPathName,
+    "-tn",            topName,
+    "-td",            verilogDir.getPathName,
+    "--infer-rw",     topName,
+    "-faf",           annoFile.getPathName,
+    "-faf",           cmdlineAnnoFile.getPathName,
+    "--repl-seq-mem", "-c:{topName}:-o:{confFile}",
+    "-ll",            logLevel,
+    "--info-mode",    "ignore",
+    "--split-modules",
+    fct
+  def inputs = verilogDir, firrtlFile, annoFile, cmdlineAnnoFile, jars
+  def firrtlOutputs = job cmdline inputs | getJobOutputs
+  def getFile name = filter (_.getPathName ==~ name) firrtlOutputs | head
+  def blackBoxes = match blackBoxListFile.getFile
+    None = Nil
+    Some file = match file.read
+      Pass contents = tokenize `\n` contents
+      Fail _        = Nil
+  InternalFirrtlOutputs
+  (getFile confFile | getOrElse "no memconf file found!".makeError.makeBadPath)
+  blackBoxes
+  (filter (matches `^.*\.s?v$` _.getPathName) firrtlOutputs)
+)
+
+global def withRocketChipDUTSimExecuteOptions dut dutSimExecuteOptions =
+  dutSimExecuteOptions
+  | withDUTSimExecuteOptions dut
+
+
+publish dutSimCompileOptionsHooks = rocketChipEICGSimCompileHook, Nil
+
+global def rocketChipEICGSimCompileHook =
+  def rocketChipVsrcs = "rocket-chip/src/main/resources/vsrc"
+  makeBlackBoxHook
+  "EICG_wrapper"
+  (editDUTSimCompileOptionsSourceFiles (source "{rocketChipVsrcs}/EICG_wrapper.v", _))
+
+global def getDUTSimCompileOptions dut =
+  emptyDUTSimCompileOptions
+  | editDUTSimCompileOptionsSourceFiles (dut.getDUTVsrcs ++ _)
+  | applyPartialEdits dut (subscribe dutSimCompileOptionsHooks)
+
+global def getDUTSimExecuteOptions dut =
+  emptyDUTSimExecuteOptions
+  | applyPartialEdits dut (subscribe dutSimExecuteOptionsHooks)
+
+global def getDUTSimulationOptions dut =
+  makeDUTSimulationOptions
+  dut.getDUTSimCompileOptions
+  dut.getDUTSimExecuteOptions

@@ -1,0 +1,149 @@
+tuple BuildTree =
+  global Root: String
+
+global def rootBuildTree = BuildTree "build"
+global def buildTreeSubDir subdir (BuildTree root) = BuildTree "{root}/{subdir}".simplify
+
+def getBuildTreeFirrtlDir     (BuildTree root) = "{root}/firrtl"
+def getBuildTreeVerilogDir    (BuildTree root) = "{root}/verilog"
+def getBuildTreeSimulationDir (BuildTree root) simulator = "{root}/sim/{simulator}"
+def getBuildTreeSimExecuteDir (BuildTree root) simulator programName = "{root}/sim/{simulator}/execute/{programName}"
+def getBuildTreeSimCompileDir (BuildTree root) simulator = "{root}/sim/{simulator}/compile"
+def getBuildTreeProgramDir    (BuildTree root) programName = "{root}/programs/{programName}"
+def getBuildTreeBootloaderDir (BuildTree root) = "{root}/bootloader"
+def getBuildTreeReportDir     buildRoot simulator programName =
+  "{buildRoot.getBuildTreeSimExecuteDir simulator programName}/report"
+
+global def simTarget dut buildRoot simName waves =
+  def dutTests = subscribe dutTests | filter (_.getDUTTestFilter dut)
+  map (singleSimTarget simName waves dut buildRoot) dutTests
+  | zip dutTests
+  | map getDUTTestName.editPairFirst
+  | aggregateTestResults
+  | println
+
+global def aggregateTestResults pairs =
+  pairs
+  | map (\(Pair testName report) "- test: {testName}\n  msg: {report}")
+  | catWith "\n"
+  | ("\n===== TEST RESULTS =====\n{_}\n")
+
+global def singleSimTarget simName waves dut buildRoot dutTest =
+  def programName = dutTest.getDUTTestProgram.getTestProgramPlanName
+  def testProgram =
+    def testProgramPlan = dutTest.getDUTTestProgram
+    def outputDir = buildRoot.getBuildTreeProgramDir testProgramPlan.getTestProgramPlanName
+    testProgramPlanToProgramCompileOptions testProgramPlan outputDir
+
+  def testPlusargs = dutTest.getDUTTestPlusargs
+
+  def userSimulationOptions =
+    def outputDir = buildRoot.getBuildTreeSimulationDir simName
+    def withExecutePlusargs = (_)
+    makeUserSimulationOptions simName waves outputDir
+    | editUserSimulationOptionsExecutePlusargs withExecutePlusargs
+    | setUserSimulationOptionsExecuteOutputDir (buildRoot.getBuildTreeSimExecuteDir simName programName)
+    | setUserSimulationOptionsCompileOutputDir (buildRoot.getBuildTreeSimCompileDir simName)
+
+  def simulationOptions =
+    dut
+    | getDUTSimulationOptions
+    | runSimulationBootloader dut bootloaderOptions bootloader
+    | editDUTSimulationOptionsExecuteOptions (editDUTSimExecuteOptionsPlusargs (testPlusargs ++ _))
+
+  def bootloader = dutTest.getDUTTestBootloader
+
+  def bootloaderOptions =
+    def filter = (\_ True)
+    def outputDir = buildRoot.getBuildTreeBootloaderDir
+    def finalLoaderOptions = makeProgramLoaderOptions filter testProgram outputDir
+    makeSimBootloaderOptions filter finalLoaderOptions outputDir
+
+  def simChecker =
+    def name = "simultion-test-finisher-checker"
+    def score = (\_ \_ 1.0)
+
+    def result dut outputs options =
+      def statusFile =
+        outputs.getSimulationOutputOutputs
+        | find (matches `([^/]*/)*status\.log` _.getPathName)
+
+      def checkStatus statusFileContents =
+        def failRegex = `^FAILED with status (.*)$`
+        def passRegex = `^PASSED$`
+        def failStatus =
+          if matches failRegex statusFileContents
+          then (extract failRegex statusFileContents).head
+          else None
+        def passMatch = matches passRegex statusFileContents
+        match failStatus passMatch
+          None          True  = makeTestResultPass statusFileContents
+          None          False = makeTestResultFail statusFileContents None
+          (Some status) _     = makeTestResultFail statusFileContents status.int
+
+      #not ideal. silent fail
+      def testResult = match statusFile
+        Some (Pair f _) = f | read | getWhenFail '' | checkStatus
+        None            = makeTestResultFail "FAILED: could not read status.log!" None
+      testResult
+
+    def reporter dut outputs options =
+      def simErr = write "{options.getSimCheckerOptionsOutputDir}/sim.err" outputs.getSimulationOutputStderr
+      def simOut = write "{options.getSimCheckerOptionsOutputDir}/sim.out" outputs.getSimulationOutputStdout
+      match (result dut outputs options)
+        TestFail failed = "FAILED: {failed.getTestFailedMsg}"
+        TestPass passed = passed.getTestPassedMsg
+
+    makeSimCheckerPlan name score result reporter
+    | makeSimChecker
+
+  def simCheckerOptions =
+    def filter = (\_ True)
+    def outputDir = buildRoot.getBuildTreeReportDir simName programName
+    makeSimCheckerOptions filter outputDir
+
+  simulateDUT dut simulationOptions userSimulationOptions
+  | (reportSimulationOutputs simChecker dut _ simCheckerOptions)
+
+global data Simulator =
+  VCS
+  VCS_Waves
+  Verilator
+  Verilator_Waves
+  Xcelium
+  Xcelium_Waves
+
+def simulatorToString = match _
+  VCS             = "vcs"
+  VCS_Waves       = "vcs"
+  Verilator       = "verilator"
+  Verilator_Waves = "verilator"
+  Xcelium         = "xcelium"
+  Xcelium_Waves   = "xcelium"
+
+def simulatorToWaves = match _
+  VCS_Waves       = True
+  Verilator_Waves = True
+  Xcelium_Waves   = True
+  _               = False
+
+def defaultSim = Verilator
+global def runSim dut = runSimWith dut defaultSim
+
+global def runSimWith dut sim = runPlatform rocketChipPlatform dut simTarget sim.simulatorToString sim.simulatorToWaves
+
+global def runPlatform platform dutPlan targ =
+  def buildTree = rootBuildTree
+  def dutResult = buildTree.platform dutPlan
+  match dutResult
+    Pass dut = targ dut buildTree
+    Fail e   = panic "DUT compilation failed: {format e}"
+
+global def rocketChipPlatform rawBuildRoot =
+  def buildRoot = rawBuildRoot | editBuildTreeRoot ("{_}/{here}")
+  (rocketChipDUTMaker _ buildRoot.userDUTArgs)
+
+def userDUTArgs buildRoot =
+  def firrtlDir = mkdir buildRoot.getBuildTreeFirrtlDir
+  def verilogDir = mkdir buildRoot.getBuildTreeVerilogDir
+  makeRuntimeRocketChipDUTArgs firrtlDir verilogDir

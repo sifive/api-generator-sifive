@@ -1,0 +1,166 @@
+tuple VerilatorCompilePlan =
+  global IncludeDirs:   List String
+  global Defines:       List NamedArg
+  global SourceFiles:   List Path
+  global Plusargs:      List NamedArg
+  global ExtraArgs:     List NamedArg
+  global MakeArgs:      List NamedArg
+  global Main:          Path
+  global Prefix:        String
+  global TopModule:     String
+  global Resources:     List String
+  global OutputDir:     String
+
+global def defaultVerilatorResources = "verilator/4.008", Nil
+
+global def makeVerilatorCompilePlan sourceFiles main topModule outputDir =
+  VerilatorCompilePlan
+  Nil            # IncludeDirs
+  Nil            # Defines
+  sourceFiles    # SourceFiles
+  Nil            # Plusargs
+  Nil            # ExtraArgs
+  Nil            # MakeArgs
+  main           # Main
+  "V{topModule}" # Prefix
+  topModule      # TopModule
+  defaultVerilatorResources # Resources
+  outputDir      # OutputDir
+
+def verilatorWrapperScript = simplify "{here}/../scripts/verilator_wrapper"
+
+def compileCmdlineArgs options =
+  def outputDir    = options.getVerilatorCompilePlanOutputDir
+  def plusargs     = options.getVerilatorCompilePlanPlusargs
+  def includeDirs  = options.getVerilatorCompilePlanIncludeDirs
+  def defines      = options.getVerilatorCompilePlanDefines
+  def rawFiles     = options.getVerilatorCompilePlanSourceFiles
+  def otherArgs    = namedArgsToListString runDir options.getVerilatorCompilePlanExtraArgs
+  def topModule    = options.getVerilatorCompilePlanTopModule
+  def prefix       = options.getVerilatorCompilePlanPrefix
+  def pairs =
+    "--prefix",              prefix,
+    "--top-module",          topModule,
+    "-Mdir",                 outputDir,
+    Nil
+
+  def files = distinctBy (scmpIdentifier _.getPathName _.getPathName) rawFiles
+
+  def runDir = outputDir
+  def includeArgs = map (\i "+incdir+{i}") includeDirs
+  def defineArgs  = namedArgsToCmdline runDir "+define+" "=" defines
+  def relativeFiles = map (_.getPathName) files
+  def base = verilatorWrapperScript, Nil
+  def main = relative outputDir options.getVerilatorCompilePlanMain.getPathName, Nil
+  def plusargArgs = namedArgsToCmdline runDir "+" "=" plusargs
+
+  base
+  ++ includeArgs
+  ++ defineArgs
+  ++ relativeFiles
+  ++ plusargArgs
+  ++ otherArgs
+  ++ pairs
+  ++ main
+
+def compileInputs options =
+  def outputDir    = options.getVerilatorCompilePlanOutputDir
+  def includeDirs  = options.getVerilatorCompilePlanIncludeDirs
+  def srcFiles     = options.getVerilatorCompilePlanSourceFiles
+
+  def includeSources = map (sources _ `.*`) includeDirs | flatten
+
+  source verilatorWrapperScript, mkdir outputDir, includeSources ++ srcFiles# ++ includeDirs
+
+global def doVerilatorCompile options =
+  def cmdline = options.compileCmdlineArgs
+  def inputs = options.compileInputs
+  def verilatorJob =
+    makePlan cmdline inputs
+    | editPlanFnOutputs (_ _ | filterOutputs)
+    | setPlanResources options.getVerilatorCompilePlanResources
+    | runJob
+  def verilatorOutputs = verilatorJob.getJobOutputs
+
+  def outputDir = options.getVerilatorCompilePlanOutputDir
+  def makeCmd =
+    def verilatorPrefix = options.getVerilatorCompilePlanPrefix
+    def makeFileName = "{outputDir}/{verilatorPrefix}.mk"
+    "make",
+    "--directory={outputDir}",
+    "--makefile={relative outputDir makeFileName}",
+    namedArgsToCmdline outputDir "" "" options.getVerilatorCompilePlanMakeArgs
+  def makeSources = options.getVerilatorCompilePlanMain, verilatorOutputs
+  def makeJob =
+    makePlan makeCmd (mkdir outputDir, makeSources)
+    | setPlanResources options.getVerilatorCompilePlanResources
+    | editPlanFnOutputs (_ _ | filterOutputs)
+    | runJob
+  def makeOutputs = makeJob.getJobOutputs
+  def filterOutputs all =
+    # ignore verilator internal files
+    filter (\f !matches `.*\.(d|dat|tree|dot|a)` f) all
+
+  def binary =
+    def binaryName = "{outputDir}/{options.getVerilatorCompilePlanPrefix}"
+    def findBinary = find (binaryName ==~ _.getPathName) makeOutputs
+    match findBinary
+      None   = "Unable to find verilator binary: {binaryName}!".makeError.makeBadPath
+      Some (Pair b _) = b
+
+  VerilatorCompileOutputs verilatorOutputs makeOutputs options binary
+
+tuple VerilatorCompileOutputs =
+  VerilatorOutputs_:    List Path
+  MakeOutputs_:         List Path
+  InputOptions_:        VerilatorCompilePlan
+  Binary_:              Path
+
+global def getVerilatorCompileOutputsVerilatorOutputs = getVerilatorCompileOutputsVerilatorOutputs_
+global def getVerilatorCompileOutputsMakeOutputs      = getVerilatorCompileOutputsMakeOutputs_
+global def getVerilatorCompileOutputsInputOptions     = getVerilatorCompileOutputsInputOptions_
+global def getVerilatorCompileOutputsBinary           = getVerilatorCompileOutputsBinary_
+
+
+
+tuple VerilatorExecutePlan =
+  global OutputDir:      String
+  global Plusargs:       List NamedArg
+  global VisibleFiles:   List Path
+  global CompileOutputs: VerilatorCompileOutputs
+  global ExtraArgs:      List NamedArg
+
+global def makeVerilatorExecutePlan compileOutputs outputDir =
+  VerilatorExecutePlan outputDir Nil Nil compileOutputs Nil
+
+global def doVerilatorExecute options =
+  def outputDir = options.getVerilatorExecutePlanOutputDir
+
+  def inputs =
+    def allCompileOutputs =
+      options.getVerilatorExecutePlanCompileOutputs.getVerilatorCompileOutputsMakeOutputs
+    def extraSources = options.getVerilatorExecutePlanVisibleFiles
+    mkdir outputDir, allCompileOutputs ++ extraSources
+
+  def plusargs = namedArgsToCmdline outputDir "+" "=" options.getVerilatorExecutePlanPlusargs
+  def extraArgs = namedArgsToCmdline "." "" "" options.getVerilatorExecutePlanExtraArgs
+  def binary = options.getVerilatorExecutePlanCompileOutputs.getVerilatorCompileOutputsBinary
+  def cmdline = relative outputDir binary.getPathName, (extraArgs ++ plusargs)
+
+  def jobResult =
+    makePlan cmdline inputs
+    | setPlanDirectory outputDir
+    | runJob
+
+  VerilatorExecuteOutputs options jobResult
+
+tuple VerilatorExecuteOutputs =
+  InputOptions_:       VerilatorExecutePlan
+  Job_:                Job
+
+global def getVerilatorExecuteOutputsRawOutputs = _.getVerilatorExecuteOutputsJob_.getJobFailedOutputs
+global def getVerilatorExecuteOutputsStdout     = _.getVerilatorExecuteOutputsJob_.getJobStdout
+global def getVerilatorExecuteOutputsStderr     = _.getVerilatorExecuteOutputsJob_.getJobStderr
+global def getVerilatorExecuteOutputsStatus     = _.getVerilatorExecuteOutputsJob_.getJobStatus
+global def getVerilatorExecuteOutputsPlan       = getVerilatorExecuteOutputsInputOptions_
+global def getVerilatorExecuteOutputsJob        = getVerilatorExecuteOutputsJob_

@@ -1,0 +1,31 @@
+global def freedomTestDriverName = "TestDriver"
+
+def vsrcDir = simplify "{here}/../vsrc"
+global def freedomTestDriverSimCompileOpts dut =
+  def testDriverFile = source "{vsrcDir}/{freedomTestDriverName}.sv".simplify
+  def model = dut.getDUTTopModule
+
+  def includeDirs = vsrcDir, Nil
+  def defines =
+    NamedArgDouble "CLOCK_PERIOD"    5.0,
+    NamedArgDouble "RESET_DELAY"     777.7,
+    NamedArgDouble "RANDOMIZE_DELAY" 2.0,
+    NamedArgString "PRINTF_COND"     "{freedomTestDriverName}.printf_cond",
+    NamedArgString "MODEL"           model,
+    NamedArg "RANDOMIZE_MEM_INIT",
+    NamedArg "RANDOMIZE_REG_INIT",
+    NamedArg "RANDOMIZE_GARBAGE_ASSIGN",
+    NamedArg "RANDOMIZE_INVALID_ASSIGN",
+    Nil
+  def sourceFiles = testDriverFile, Nil
+  def plusargs =
+    NamedArg "libext+.v+.sv",
+    NamedArg "notimingchecks",
+    Nil
+  makeDUTSimCompileOptions
+  includeDirs
+  defines
+  sourceFiles
+  plusargs
+
+global def freedomTestDriverSimExecuteOpts dut = emptyDUTSimExecuteOptions

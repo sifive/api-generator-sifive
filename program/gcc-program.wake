@@ -1,0 +1,104 @@
+tuple GCCProgramPlan =
+  global Sources:      List Path
+  global IsCPlusPlus:  Boolean
+  global CFlags:       List String
+  global LDFlags:      List String
+  global ASFlags:      List String
+  global CFiles:       List Path
+  global IncludeDirs:  List String
+  global LinkerScript: Option Path
+  global Host:         Option String
+  global Resources:    List String
+  global OutputFile:   String
+
+global def makeGCCProgramPlan cfiles outputFile =
+  GCCProgramPlan
+  Nil
+  False
+  Nil
+  Nil
+  Nil
+  cfiles
+  Nil
+  None
+  None
+  Nil
+  outputFile
+
+global def makeRISCVProgramPlan cfiles outputFile =
+  GCCProgramPlan
+  Nil
+  False
+  Nil
+  Nil
+  Nil
+  cfiles
+  Nil
+  None
+  (Some "riscv64-unknown-elf")
+  defaultSiFiveRISCVResources
+  outputFile
+
+global def getGCCProgramPlanPrefix = match _.getGCCProgramPlanHost
+  Some host = "{host}-"
+  None      = ""
+global def getGCCProgramPlanTool tool plan = "{plan.getGCCProgramPlanPrefix}{tool}"
+global def getGCCProgramPlanGCC     plan =
+  if plan.getGCCProgramPlanIsCPlusPlus
+  then getGCCProgramPlanTool "g++" plan
+  else getGCCProgramPlanTool "gcc" plan
+global def getGCCProgramPlanObjcopy = getGCCProgramPlanTool "objcopy"
+
+
+global def makeGCCProgram plan =
+  def gcc = plan.getGCCProgramPlanGCC
+  def outputFile = plan.getGCCProgramPlanOutputFile
+  def cmdline =
+    def includeFlags = map (\dir "-I{dir}") plan.getGCCProgramPlanIncludeDirs
+    def outputFlags = "-o", outputFile, Nil
+    def cFlags = plan.getGCCProgramPlanCFlags ++ includeFlags ++ outputFlags
+    def asFlags = map ("-Wa,{_}") plan.getGCCProgramPlanASFlags
+    def lFlags = match plan.getGCCProgramPlanLinkerScript
+      None   = plan.getGCCProgramPlanLDFlags
+      Some l =
+        ("-T{l.getPathName}", "-Wl,--start-group", plan.getGCCProgramPlanLDFlags)
+        ++ ("-Wl,--end-group", Nil)
+    gcc, cFlags ++ (map getPathName plan.getGCCProgramPlanCFiles) ++ asFlags ++ lFlags
+  def jobInputs =
+    def linkerScript = match plan.getGCCProgramPlanLinkerScript
+      None   = Nil
+      Some l = l, Nil
+    def includeFiles = map (sources _ `.*`) plan.getGCCProgramPlanIncludeDirs | flatten
+    "{outputFile}/..".simplify.mkdir, linkerScript
+    ++ plan.getGCCProgramPlanSources
+    ++ includeFiles
+    ++ plan.getGCCProgramPlanCFiles
+
+  makePlan cmdline jobInputs
+  | setPlanResources plan.getGCCProgramPlanResources
+  | runJob
+  | getJobOutputs
+  | filter (outputFile.simplify ==~ _.getPathName)
+  | head
+  | getOrElse "gcc: could not find output file: {outputFile}".makeError.makeBadPath
+
+global def riscv64UnknownElfObjcopy elf outputFile =
+  def name = "riscv64-unknown-elf-objcopy"
+  def resources = defaultSiFiveRISCVResources
+  objcopy resources name elf outputFile
+
+def objcopy resources name elf bin =
+  def cmdline = name, "-O", "binary", elf.getPathName, bin, Nil
+  def inputs =
+    def dir = simplify "{bin}/.." | mkdir
+    elf, dir, Nil
+  makePlan cmdline inputs
+  | setPlanResources resources
+  | runJob
+  | getJobOutput
+
+global def bin2hex bitWidth outfile infile =
+  def bin2hex = source "{here}/../scripts/bin2hex".simplify
+  def cmdline = bin2hex.getPathName, "--bit-width={str bitWidth}", infile.getPathName, outfile, Nil
+  def inputs = mkdir (simplify "{outfile}/.."), infile, bin2hex, Nil
+  job cmdline inputs | getJobOutput

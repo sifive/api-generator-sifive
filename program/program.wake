@@ -1,0 +1,245 @@
+tuple DUTProgramCompilerPlan =
+  global Name:         String
+  global Stdlib:       String
+  global Host:         String
+  global MemoryRegion: String
+  global Score:        DUT => ProgramCompileOptions => Double
+  global Imp:          DUT => ProgramCompileOptions => Program
+
+global def makeProgramCompilerPlan name stdlib toolchain memoryRegion score imp =
+  DUTProgramCompilerPlan name stdlib toolchain memoryRegion score imp
+
+global def makeProgramCompiler plan =
+  def name         = plan.getDUTProgramCompilerPlanName
+  def stdlib       = plan.getDUTProgramCompilerPlanStdlib
+  def host         = plan.getDUTProgramCompilerPlanHost
+  def memoryRegion = plan.getDUTProgramCompilerPlanMemoryRegion
+  def score        = plan.getDUTProgramCompilerPlanScore
+  def imp          = plan.getDUTProgramCompilerPlanImp
+  DUTProgramCompiler name stdlib host memoryRegion score imp
+
+
+tuple DUTProgramCompiler =
+  global Name:         String
+  global Stdlib:       String
+  global Host:         String
+  global MemoryRegion: String
+  Score:               DUT => ProgramCompileOptions => Double
+  Imp:                 DUT => ProgramCompileOptions => Program
+
+
+tuple TestProgramPlan =
+  global Name:        String
+  global CFlags:      List String
+  global ASFlags:     List String
+  global CFiles:      List Path
+  global IncludeDirs: List String
+  global Sources:     List Path
+  global Filter:      DUTProgramCompiler => Boolean
+
+global def makeTestProgramPlan name cfiles =
+  TestProgramPlan
+  name      # Name:        String
+  Nil       # CFlags:      List String
+  Nil       # ASFlags:     List String
+  cfiles    # CFiles:      List Path
+  Nil       # IncludeDirs: List String
+  Nil       # Sources:     List Path
+  (\_ True) # Filter:      DUTProgramCompiler => Boolean
+
+global def testProgramPlanToProgramCompileOptions plan outputDir =
+  def name        = plan.getTestProgramPlanName
+  def cFlags      = plan.getTestProgramPlanCFlags
+  def aSFlags     = plan.getTestProgramPlanASFlags
+  def cFiles      = plan.getTestProgramPlanCFiles
+  def includeDirs = plan.getTestProgramPlanIncludeDirs
+  def sources     = plan.getTestProgramPlanSources
+  def filter      = plan.getTestProgramPlanFilter
+  ProgramCompileOptions
+  name
+  cFlags
+  aSFlags
+  cFiles
+  includeDirs
+  sources
+  outputDir
+  filter
+
+global def testProgramPlanToGCCProgramPlan outputFile plan =
+  testProgramPlanToProgramCompileOptions plan "{outputFile}/..".simplify
+  | programCompileOptionsToGCCProgramPlan outputFile
+
+# must use machine agnostic flags
+tuple ProgramCompileOptions =
+  global Name:        String
+  global CFlags:      List String
+  global ASFlags:     List String
+  global CFiles:      List Path
+  global IncludeDirs: List String
+  global Sources:     List Path
+  global OutputDir:   String
+  global Filter:      DUTProgramCompiler => Boolean
+
+global def makeProgramCompileOptions name cflags cfiles outputDir =
+  def asFlags     = Nil
+  def includeDirs = Nil
+  def sources     = Nil
+  def filter      = (\_ True)
+  ProgramCompileOptions name cflags asFlags cfiles includeDirs sources outputDir filter
+
+global def programCompileOptionsToGCCProgramPlan outputFile plan =
+  def name        = plan.getProgramCompileOptionsName
+  def cflags      = plan.getProgramCompileOptionsCFlags
+  def cfiles      = plan.getProgramCompileOptionsCFiles
+  def asFlags     = plan.getProgramCompileOptionsASFlags
+  def includeDirs = plan.getProgramCompileOptionsIncludeDirs
+  def sources     = plan.getProgramCompileOptionsSources
+  makeRISCVProgramPlan cfiles outputFile
+  | setGCCProgramPlanCFlags      cflags
+  | setGCCProgramPlanASFlags     asFlags
+  | setGCCProgramPlanIncludeDirs includeDirs
+  | setGCCProgramPlanSources     sources
+
+tuple Program =
+  global Binary:   Path
+
+global def makeProgram binary = Program binary
+
+tuple DUTProgram =
+  Name_:         String
+  Stdlib_:       String
+  Host_:         String
+  MemoryRegion_: String
+  Binary_:       Path
+
+global def getDUTProgramName         = getDUTProgramName_
+global def getDUTProgramStdlib       = getDUTProgramStdlib_
+global def getDUTProgramHost         = getDUTProgramHost_
+global def getDUTProgramMemoryRegion = getDUTProgramMemoryRegion_
+global def getDUTProgramBinary       = getDUTProgramBinary_
+
+global def makeDUTProgram programCompiler dut options =
+  def program = programCompiler.getDUTProgramCompilerImp dut options
+
+  def name         = programCompiler.getDUTProgramCompilerName
+  def stdlib       = programCompiler.getDUTProgramCompilerStdlib
+  def host         = programCompiler.getDUTProgramCompilerHost
+  def memoryRegion = programCompiler.getDUTProgramCompilerMemoryRegion
+  def binary       = program.getProgramBinary
+  DUTProgram  name stdlib host memoryRegion binary
+
+
+tuple SimBootloaderPlan =
+  global Name:         String
+  global Score:        DUT => SimBootloaderOptions => Double
+  global Loaders:      DUT => SimBootloaderOptions => List (Pair ProgramLoaderOptions SimProgramLoader)
+  global FinalLoader:  DUT => SimBootloaderOptions => SimProgramLoader
+
+global def makeSimBootloaderPlan name score loaders finalLoader =
+  SimBootloaderPlan name score loaders finalLoader
+
+global def makeSimBootloader plan =
+  def name         = plan.getSimBootloaderPlanName
+  def score        = plan.getSimBootloaderPlanScore
+  def loaders      = plan.getSimBootloaderPlanLoaders
+  def finalLoader  = plan.getSimBootloaderPlanFinalLoader
+  SimBootloader name score loaders finalLoader
+
+tuple SimBootloader =
+  global Name:         String
+  global Score:        DUT => SimBootloaderOptions => Double
+  global Loaders:      DUT => SimBootloaderOptions => List (Pair ProgramLoaderOptions SimProgramLoader)
+  global FinalLoader:  DUT => SimBootloaderOptions => SimProgramLoader
+
+tuple SimBootloaderOptions =
+  global Filter:             SimBootloader => Boolean
+  global FinalLoaderOptions: ProgramLoaderOptions
+  global OutputDir:          String
+
+global def makeSimBootloaderOptions filter finalLoaderOptions outputDir =
+  SimBootloaderOptions filter finalLoaderOptions outputDir
+
+global def runSimulationBootloader dut options simBootloader simulationOptions =
+  def loaders =
+    def applyLoader (Pair options loader) = simulationLoadProgram dut options loader
+    simBootloader.getSimBootloaderLoaders dut options | map applyLoader
+
+  def finalLoaderOptions = options.getSimBootloaderOptionsFinalLoaderOptions
+  def finalLoader = simBootloader.getSimBootloaderFinalLoader dut options
+
+  foldl (_._) simulationOptions loaders
+  | simulationLoadProgram dut finalLoaderOptions finalLoader
+
+
+tuple SimProgramLoaderPlan =
+  global Name:            String
+  global MemoryRegion:    String
+  global ProgramCompiler: DUTProgramCompiler
+  global Score:           DUT => ProgramLoaderOptions => Double
+  global EditCompileOpts: DUT => ProgramLoaderOptions => DUTSimCompileOptions => DUTSimCompileOptions
+  global EditExecuteOpts: DUT => ProgramLoaderOptions => DUTSimExecuteOptions => DUTSimExecuteOptions
+
+global def makeSimProgramLoaderPlan name memoryRegion programCompiler score editCompileOpts editExecuteOpts =
+  SimProgramLoaderPlan name memoryRegion programCompiler score editCompileOpts editExecuteOpts
+
+global def makeSimProgramLoader plan =
+  def name            = plan.getSimProgramLoaderPlanName
+  def memoryRegion    = plan.getSimProgramLoaderPlanMemoryRegion
+  def programCompiler = plan.getSimProgramLoaderPlanProgramCompiler
+  def compilerName = programCompiler.getDUTProgramCompilerName
+  def stdlib       = programCompiler.getDUTProgramCompilerStdlib
+  def host         = programCompiler.getDUTProgramCompilerHost
+  def score           = plan.getSimProgramLoaderPlanScore
+  def editCompileOpts = plan.getSimProgramLoaderPlanEditCompileOpts
+  def editExecuteOpts = plan.getSimProgramLoaderPlanEditExecuteOpts
+
+  def imp dut programLoaderOptions simulationOptions =
+    simulationOptions
+    | editDUTSimulationOptionsCompileOptions (editCompileOpts dut programLoaderOptions)
+    | editDUTSimulationOptionsExecuteOptions (editExecuteOpts dut programLoaderOptions)
+  SimProgramLoader name memoryRegion compilerName stdlib host score imp
+
+tuple SimProgramLoader =
+  global Name:            String
+  global MemoryRegion:    String
+  global CompilerName:    String
+  global Stdlib:          String
+  global Host:            String
+  Score:                  DUT => ProgramLoaderOptions => Double
+  Imp:                    DUT => ProgramLoaderOptions => DUTSimulationOptions => DUTSimulationOptions
+
+tuple ProgramLoaderOptions =
+  global Filter:         SimProgramLoader => Boolean
+  global ProgramOptions: ProgramCompileOptions
+  global OutputDir:      String
+
+global def makeProgramLoaderOptions filter programOptions outputDir =
+  ProgramLoaderOptions filter programOptions outputDir
+
+global def makePlusargProgramLoader plusarg memoryRegion score compiler =
+  def name = "{plusarg}-plusarg-loader"
+
+  def editCompileOpts dut loaderOptions = (_)
+  def editExecuteOpts dut loaderOptions executeOptions =
+    def outputDir = loaderOptions.getProgramLoaderOptionsOutputDir
+    def programOptions = loaderOptions.getProgramLoaderOptionsProgramOptions
+    def hex =
+      def bitWidth = 64 # TODO: get from object model
+      def hexFile = "{outputDir}/{programOptions.getProgramCompileOptionsName}.hex"
+      makeDUTProgram compiler dut programOptions
+      | getDUTProgramBinary
+      | bin2hex bitWidth hexFile
+    executeOptions
+    | editDUTSimExecuteOptionsPlusargs (NamedArgPath plusarg hex, _)
+    | editDUTSimExecuteOptionsVisibleFiles (hex, _)
+  makeSimProgramLoaderPlan name memoryRegion compiler score editCompileOpts editExecuteOpts
+  | makeSimProgramLoader
+
+global def simulationLoadProgram dut programLoaderOptions simProgramLoader simulationOptions =
+  simProgramLoader.getSimProgramLoaderImp dut programLoaderOptions simulationOptions
+
+global def makeSingleStageBootLoader loader score =
+  def name = "single-stage-{loader.getSimProgramLoaderName}"
+  def loaders = (\_ \_ Nil)
+  def finalLoader = (\_ \_ loader)
+  makeSimBootloaderPlan name score loaders finalLoader | makeSimBootloader

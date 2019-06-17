@@ -1,0 +1,15 @@
+global def getBestImpForPlan plan filterGetter scoreGetter imps =
+  def keepGreater (Pair prevScore prevImp) currImp =
+    def currScore = currImp.scoreGetter plan
+    if currScore >. prevScore
+    then Pair currScore currImp
+    else Pair prevScore prevImp
+  def filtered = filter plan.filterGetter imps
+  match filtered
+    h, _ =
+      def firstPair = Pair (h.scoreGetter plan) h
+      foldl keepGreater firstPair filtered.tail | getPairSecond
+    Nil  = panic "No valid implementation for plan: {format plan}"
+
+global def applyBestImpForPlan plan filterGetter scoreGetter imps =
+  plan | getBestImpForPlan plan filterGetter scoreGetter imps

@@ -1,0 +1,54 @@
+global data NamedArg =
+  NamedArg        String
+  NamedArgInteger String Integer
+  NamedArgDouble  String Double
+  NamedArgString  String String
+  NamedArgPath    String Path
+
+global def getNamedArgName = match _
+  NamedArg        n   = n
+  NamedArgInteger n _ = n
+  NamedArgDouble  n _ = n
+  NamedArgString  n _ = n
+  NamedArgPath    n _ = n
+
+global def getNamedArgValue dir = match _
+  NamedArg        _   = None
+  NamedArgInteger _ i = Some (str i)
+  NamedArgDouble  _ d = Some (dstr d)
+  NamedArgString  _ s = Some (s)
+  NamedArgPath    _ p = Some (relative dir p.getPathName)
+
+global def namedArgToString dir separator namedArg =
+  def name = namedArg.getNamedArgName
+  def valueOpt = getNamedArgValue dir namedArg
+  match valueOpt
+    None       = name
+    Some value = "{name}{separator}{value}"
+
+global def namedArgToListString dir namedArg =
+  def name = namedArg.getNamedArgName
+  def valueOpt = getNamedArgValue dir namedArg
+  match valueOpt
+    None       = name, Nil
+    Some value = name, value, Nil
+
+global def namedArgValueEquals = match _ _
+  (NamedArg        _   ) (NamedArg        _   ) = True
+  (NamedArgInteger _ i1) (NamedArgInteger _ i2) = i1 == i2
+  (NamedArgDouble  _ d1) (NamedArgDouble  _ d2) = d1 ==. d2
+  (NamedArgString  _ s1) (NamedArgString  _ s2) = s1 ==~ s2
+  (NamedArgPath    _ p1) (NamedArgPath    _ p2) = p1.getPathName ==~ p2.getPathName
+  _ _ = False
+
+global def namedArgEquals a1 a2 =
+  a1.getNamedArgName ==~ a2.getNamedArgName
+  && namedArgValueEquals a1 a2
+
+global def namedArgsToListString dir namedArgs =
+  namedArgs
+  | map (namedArgToListString dir _)
+  | flatten
+
+global def namedArgsToCmdline dir prefix separator namedArgs =
+  map ("{prefix}{namedArgToString dir separator _}") namedArgs

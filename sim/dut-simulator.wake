@@ -1,0 +1,136 @@
+tuple UserSimulationOptions =
+  global Filter:             DUTSimulator => Boolean
+  global CompileOutputDir:   String
+  global CompilePlusargs:    List NamedArg
+  global ExecuteOutputDir:   String
+  global ExecutePlusargs:    List NamedArg
+
+global def makeUserSimulationOptions simulatorName waves outputDir =
+  def execOutputDir = "{outputDir}/execute"
+  def compOutputDir = "{outputDir}/compile"
+  def dutSimFilter dutSim =
+    dutSimulatorNameEquals simulatorName dutSim
+    && dutSimulatorWavesEquals waves dutSim
+  UserSimulationOptions dutSimFilter compOutputDir Nil execOutputDir Nil
+
+
+tuple DUTSimulatorPlan =
+  global SimulatorName:      String
+  global SimulatorVendor:    String
+  global TestDriver:         String
+  global Waves:              Boolean
+  global Score:              DUT => DUTSimCompileOptions => DUTSimExecuteOptions => UserSimulationOptions => Double
+  global SimulatorImp:       DUT => DUTSimCompileOptions => DUTSimExecuteOptions => UserSimulationOptions => SimulationOutput
+
+global def makeDUTSimulatorPlan simName simVendor testDriverName waves score simImp =
+  DUTSimulatorPlan simName simVendor testDriverName waves score simImp
+
+
+global def makeDUTSimulator plan =
+  def simulatorName   = plan.getDUTSimulatorPlanSimulatorName
+  def simulatorVendor = plan.getDUTSimulatorPlanSimulatorVendor
+  def testDriver      = plan.getDUTSimulatorPlanTestDriver
+  def waves           = plan.getDUTSimulatorPlanWaves
+  def imp             = plan.getDUTSimulatorPlanSimulatorImp
+
+  def score (Quadruple dut compileOpts executeOpts userOpts) =
+    plan.getDUTSimulatorPlanScore dut compileOpts executeOpts userOpts
+
+  DUTSimulator simulatorName simulatorVendor testDriver waves score imp
+
+tuple Quadruple a b c d =
+  First:  a
+  Second: b
+  Third:  c
+  Fourth: d
+
+tuple DUTSimulator =
+  global SimulatorName:   String
+  global SimulatorVendor: String
+  global TestDriver:      String
+  global Waves:           Boolean
+  Score:                  Quadruple DUT DUTSimCompileOptions DUTSimExecuteOptions UserSimulationOptions => Double
+  Imp:                    DUT => DUTSimCompileOptions => DUTSimExecuteOptions => UserSimulationOptions => SimulationOutput
+
+global def dutSimulatorVendorEquals     vendor     sim = sim.getDUTSimulatorSimulatorVendor ==~ vendor
+global def dutSimulatorNameEquals       name       sim = sim.getDUTSimulatorSimulatorName ==~ name
+global def dutSimulatorTestDriverEquals testDriver sim = sim.getDUTSimulatorTestDriver ==~ testDriver
+global def dutSimulatorWavesEquals      waves      sim = match sim.getDUTSimulatorWaves waves
+  True  True  = True
+  False False = True
+  _     _     = False
+
+
+tuple DUTSimulationOptions =
+  global CompileOptions: DUTSimCompileOptions
+  global ExecuteOptions: DUTSimExecuteOptions
+
+global def makeDUTSimulationOptions compileOpts executeOpts = DUTSimulationOptions compileOpts executeOpts
+
+global def runDUTSimulator dutSimulator dut dutOptions userOptions =
+  dutSimulator.getDUTSimulatorImp
+  dut
+  dutOptions.getDUTSimulationOptionsCompileOptions
+  dutOptions.getDUTSimulationOptionsExecuteOptions
+  userOptions
+
+global def simulateDUT dut dutOptions userOptions =
+  def compileOpts = dutOptions.getDUTSimulationOptionsCompileOptions
+  def executeOpts = dutOptions.getDUTSimulationOptionsExecuteOptions
+  def simulators = subscribe dutSimulators
+  def simulator =
+    def plan = Quadruple dut compileOpts executeOpts userOptions
+    def getScore = _.getQuadrupleFourth.getUserSimulationOptionsFilter
+    getBestImpForPlan plan getScore getDUTSimulatorScore simulators
+
+  simulator.getDUTSimulatorImp dut compileOpts executeOpts userOptions
+
+tuple DUTSimCompileOptions =
+  global IncludeDirs:    List String
+  global Defines:        List NamedArg
+  global SourceFiles:    List Path
+  global Plusargs:       List NamedArg
+
+global def makeDUTSimCompileOptions includeDirs defines sourceFiles plusargs =
+  DUTSimCompileOptions includeDirs defines sourceFiles plusargs
+
+global def emptyDUTSimCompileOptions = makeDUTSimCompileOptions Nil Nil Nil Nil
+
+global def withDUTSimCompileOptions dut dutSimCompileOptions =
+  dutSimCompileOptions
+  | editDUTSimCompileOptionsSourceFiles (dut.getDUTVsrcs ++ _)
+
+global def appendDUTSimCompileOptions (DUTSimCompileOptions includes defines srcs plusargs) options =
+  options
+  | editDUTSimCompileOptionsIncludeDirs  (_ ++ includes)
+  | editDUTSimCompileOptionsDefines      (_ ++ defines)
+  | editDUTSimCompileOptionsSourceFiles  (_ ++ srcs)
+  | editDUTSimCompileOptionsPlusargs     (_ ++ plusargs)
+
+global def prependDUTSimCompileOptions (DUTSimCompileOptions includes defines srcs plusargs) options =
+  options
+  | editDUTSimCompileOptionsIncludeDirs  (includes ++ _)
+  | editDUTSimCompileOptionsDefines      (defines ++ _)
+  | editDUTSimCompileOptionsSourceFiles  (srcs ++ _)
+  | editDUTSimCompileOptionsPlusargs     (plusargs ++ _)
+
+
+tuple DUTSimExecuteOptions =
+  global Plusargs:       List NamedArg
+  global VisibleFiles:   List Path
+
+global def makeDUTSimExecuteOptions = DUTSimExecuteOptions _ _
+
+global def emptyDUTSimExecuteOptions = makeDUTSimExecuteOptions Nil Nil
+
+global def withDUTSimExecuteOptions dut dutSimExecuteOptions = dutSimExecuteOptions
+
+global def appendDUTSimExecuteOptions (DUTSimExecuteOptions plusargs visibleFiles) options =
+  options
+  | editDUTSimExecuteOptionsPlusargs     (_ ++ plusargs)
+  | editDUTSimExecuteOptionsVisibleFiles (_ ++ visibleFiles)
+
+global def prependDUTSimExecuteOptions (DUTSimExecuteOptions plusargs visibleFiles) options =
+  options
+  | editDUTSimExecuteOptionsPlusargs     (plusargs ++ _)
+  | editDUTSimExecuteOptionsVisibleFiles (visibleFiles ++ _)

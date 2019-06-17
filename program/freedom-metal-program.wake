@@ -1,0 +1,217 @@
+# FIXME
+def addEntry (Pair memSubnode offsetInt) inDTSContents =
+  def offset = "0x{strbase 16 offsetInt}"
+  def subnodeOpt =
+    match "({memSubnode}@[0-9]+)".stringToRegExp
+      Pass regex =
+        def nodeRegex = regExpCat (`^\t\t`, `(?:L[0-9]+:\s)?`, regex, `\s{$`, Nil)
+        inDTSContents
+        | map nodeRegex.extract
+        | flatten
+        | head
+        | omap ("/soc/{_}")
+      Fail _ = None
+
+  match subnodeOpt
+    Some subnode =
+      inDTSContents
+      | map (replace `^\tchosen\s{$` "\tchosen \{\n\t\tmetal,entry = <&\{{subnode}\} {offset}>;")
+    None = inDTSContents
+
+def reWrap regex = match "({regex.regExpToString})".stringToRegExp
+  Pass r = r
+  Fail e = panic "Parenthesized string is an invalid Regular Expression: ({regex.regExpToString})"
+
+def addSocSubnodeField subnodeRegex (Pair fieldName fieldValue) inDTSContents =
+  def socSplit = splitTo `\t(L[0-9]+:\s)?soc\s{$`.matches inDTSContents
+  def subnodeSplit =
+    def regex = regExpCat (`^\t{2}`, subnodeRegex.reWrap, `\s{$`, Nil)
+    splitTo regex.matches socSplit.getPairSecond
+
+  if !subnodeSplit.getPairSecond.empty
+  then
+    socSplit.getPairFirst
+    ++ subnodeSplit.getPairFirst
+    ++ ("\t\t\t{fieldName} = {fieldValue};", subnodeSplit.getPairSecond)
+  else
+    inDTSContents
+
+def addHfclk frequency dtsContents =
+  if exists `^\t\tstdout-path = .*$`.matches dtsContents
+  then
+    def hfclkField = Pair "clocks" "<&hfclk>"
+    def hfclkNode =
+      "\t\thfclk: clock@0 \{",
+      "\t\t\t#clock-cells = <0>;",
+      "\t\t\tcompatible = \"fixed-clock\";",
+      "\t\t\tclock-frequency = <{str frequency}>;",
+      "\t\t\};",
+      "",
+      Nil
+    dtsContents
+    | addSocSubnode hfclkNode
+    | addSocSubnodeField `(L[0-9]+:\s)?serial@[0-9]+` hfclkField
+  else
+    dtsContents
+
+def splitTo f l =  match l
+  Nil  = Pair Nil Nil
+  h, t if f h = Pair (h, Nil) t
+  h, t = match (splitTo f t)
+    Pair f s = Pair (h, f) s
+
+def addSocSubnode = addSubnode `(L[0-9]+:\s)?soc`
+
+def addChosenSubnode = addSubnode `(L[0-9]+:\s)?chosen`
+
+def addSubnode parentNode node inDTSContents =
+  def split =
+    def firstSplit = splitTo (`^\t`, parentNode, `\s{$`, Nil).regExpCat.matches inDTSContents
+    def secondSplit = splitUntil `^\t};$`.matches firstSplit.getPairSecond
+    Pair (firstSplit.getPairFirst ++ secondSplit.getPairFirst) (secondSplit.getPairSecond)
+  split.getPairFirst ++ node ++ split.getPairSecond
+
+def addStdoutChosenFromAlias inDTSContents =
+  def parentNode = `(L[0-9]+:\s)soc`
+  def firstSplit = splitTo (`^\t`, parentNode, `\s{$`, Nil).regExpCat.matches inDTSContents
+  def secondSplit = splitUntil `\t\};$`.matches firstSplit.getPairSecond
+  def socContents = secondSplit.getPairFirst
+  def baudrate = 115200
+  def serialNodes =
+    map `^\t\t(?:L[0-9]+:\s)?(serial@[0-9]+)\s{$`.extract socContents | flatten
+  match serialNodes
+    serialNode, _ =
+      def stdChosen =
+        "\t\tstdout-path = \"/soc/{serialNode}:{str baudrate}\";", Nil
+      addChosenSubnode stdChosen inDTSContents
+    _ = inDTSContents
+
+def addChosenNode inDTSContents =
+  def parentNode = "/"
+  def firstSplit = splitTo (parentNode.quote, `\s{$`, Nil).regExpCat.matches inDTSContents
+  def secondSplit = splitUntil `.*{.*`.matches firstSplit.getPairSecond
+  def chosenNode = "\tchosen \{", "\t\};", Nil
+
+  firstSplit.getPairFirst
+  ++ secondSplit.getPairFirst
+  ++ chosenNode
+  ++ secondSplit.getPairSecond
+
+global def fixupDTS dts metalEntryPairOpt = memoize 0 (
+  def clkFrequency = 32500000
+  def prefix =
+    extract `(.*)\.dts` dts.getPathName
+    | head
+    | getOrElse dts.getPathName
+
+  match dts.read
+    Pass dtsContents =
+      dtsContents
+      | tokenize `\n`
+      | addChosenNode
+      | addStdoutChosenFromAlias
+      | (omap addEntry metalEntryPairOpt | getOrElse (_))
+      | addHfclk clkFrequency
+      | catWith "\n"
+      | write "{prefix}_fixed.dts"
+    fail = dts
+)
+
+global def generateMetalFromDts dts machineName outputDir =
+  def clkFrequency = 32500000
+  def prefix = "{outputDir}/{machineName}"
+  def dtb = dtsTodtb dts "{prefix}.dtb"
+  def newDTS = dtbTodts dtb "{prefix}_new.dts"
+  def metalHeader =
+    makeFreedomMetalHeaderGeneratorOptions dtb "{prefix}.h"
+    | runFreedomMetalHeaderGenerator
+  def ldScript =
+    makeFreedomLdScriptGeneratorOptions dtb "{prefix}.lds"
+    | runFreedomLdScriptGenerator
+  def makeAttributes =
+    makeFreedomMakeAttributesGeneratorOptions dtb "{prefix}.config"
+    | runFreedomMakeAttributesGenerator
+
+  def runMetalInstall attributes =
+    makeFreedomMetalConfigureOptions
+    attributes.getFreedomMakeAttributesMARCH
+    attributes.getFreedomMakeAttributesMABI
+    attributes.getFreedomMakeAttributesCMODEL
+    "riscv64-unknown-elf"
+    outputDir
+    machineName
+    metalHeader
+    ldScript
+    | runFreedomMetalInstall
+  rmap runMetalInstall makeAttributes
+
+global def makeFreedomMetalProgram metalInstall gccProgramPlan =
+  def march = metalInstall.getMachineExecutionEnvironmentRISCV_ARCH
+  def mabi = metalInstall.getMachineExecutionEnvironmentRISCV_ABI
+  def cmodel = metalInstall.getMachineExecutionEnvironmentRISCV_CMODEL
+  def includeDir = metalInstall.getMachineExecutionEnvironmentIncludeDir
+  def withASFlags =
+    "-march={march}", "-mabi={mabi}", "-I{includeDir}", _
+  def withCFlags =
+    "-march={march}", "-mabi={mabi}", "-mcmodel={cmodel}", "-I{includeDir}", _
+  def withLdFlags =
+    def fileName = extract `([^/]*/)*lib([^/]*)\.a` _.getPathName | at 1
+    def metal =
+      metalInstall.getMachineExecutionEnvironmentLibMetal.fileName
+      | omap ("-l{_}", Nil)
+      | getOrElse Nil
+    def metalGloss =
+      metalInstall.getMachineExecutionEnvironmentLibMetalGloss.fileName
+      | omap ("-l{_}", Nil)
+      | getOrElse Nil
+    def libDir = metalInstall.getMachineExecutionEnvironmentLibDir
+    "-nostartfiles", "-nostdlib", "-L{libDir}", "-lc", "-lgcc", metal
+    ++ metalGloss
+    ++ _
+
+  gccProgramPlan
+  | setGCCProgramPlanResources defaultSiFiveRISCVResources
+  | editGCCProgramPlanSources (metalInstall.getMachineExecutionEnvironmentAllOutputs ++ _)
+  | editGCCProgramPlanASFlags withASFlags
+  | editGCCProgramPlanCFlags  withCFlags
+  | editGCCProgramPlanLDFlags withLdFlags
+  | linkFreedomMetalProgram metalInstall
+  | makeGCCProgram
+
+
+publish rocketChipDUTrogramCompilers = freedomMetalDUTProgramCompiler, Nil
+
+global def freedomMetalDUTProgramCompiler =
+  def name         = "freedom-metal-dut-program-compiler"
+  def stdlib       = "freedom-metal"
+  def toolchain    = "riscv64-unknown-elf"
+  def memoryRegion = "sram"
+  def score        = (\_ \_ 1.0) # TODO
+
+  def imp dut programCompileOptions =
+    def outputDir = programCompileOptions.getProgramCompileOptionsOutputDir
+    def installDir = "build/freedom-metal/{dut.getDUTName}"
+    def metalInstall =
+      fixupDTS dut.getRocketChipDUTDTS None
+      | (generateMetalFromDts _ dut.getDUTName installDir)
+    def gccProgramPlan =
+      def outputFile = "{outputDir}/{programCompileOptions.getProgramCompileOptionsName}.elf"
+      programCompileOptionsToGCCProgramPlan outputFile programCompileOptions
+    def binary =
+      def outputFile = "{outputDir}/{programCompileOptions.getProgramCompileOptionsName}.bin"
+      metalInstall
+      | rmap (makeFreedomMetalProgram _ gccProgramPlan)
+      | rmap (riscv64UnknownElfObjcopy _ outputFile)
+      | getPass
+      | getOrElse "{name}: failed to compile binary".makeError.makeBadPath
+    makeProgram binary
+
+  makeProgramCompilerPlan name stdlib toolchain memoryRegion score imp
+  | makeProgramCompiler
+
+
+global def linkFreedomMetalProgram metalInstall gccProgramPlan =
+  gccProgramPlan
+  | setGCCProgramPlanResources defaultSiFiveRISCVResources
+  | setGCCProgramPlanHost (Some metalInstall.getMachineExecutionEnvironmentHost)
+  | setGCCProgramPlanLinkerScript (Some metalInstall.getMachineExecutionEnvironmentLdScript)

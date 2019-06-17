@@ -1,0 +1,52 @@
+tuple VivadoPlan =
+  global Resources: List String
+  global NoJournal: Boolean
+  global Source:    Path
+  global TclArgs:   List String
+  global OutputDir: String
+  global HomeDir:   String
+  global FnOutputs: List String => List String
+  global VisibleFiles: List Path
+
+global def defaultVivadoResources = "xilinx/vivado/2018.2", Nil
+
+global def makeVivadoPlan source outputDir =
+  VivadoPlan
+  defaultVivadoResources # Resources
+  True                   # NoJournal
+  source                 # Source
+  Nil                    # TclArgs
+  outputDir              # OutputDir
+  "{outputDir}/home"     # OutputDir
+  (\x files "{outputDir}/obj" `.*`)
+  Nil
+
+global def doVivado plan =
+  def outputDir = mkdir plan.getVivadoPlanOutputDir
+  def homeDir = mkdir plan.getVivadoPlanHomeDir
+  def runDir = outputDir.getPathName
+  def cmdline =
+    def noJournal = if plan.getVivadoPlanNoJournal then "-nojournal", Nil else Nil
+    def base = "vivado", "-mode", "batch", noJournal
+    base ++
+    ("-source", relative runDir plan.getVivadoPlanSource.getPathName,
+    "-tclargs", plan.getVivadoPlanTclArgs)
+  def inputs = outputDir, homeDir, plan.getVivadoPlanSource, plan.getVivadoPlanVisibleFiles
+  def job =
+    makePlan cmdline inputs
+    | setPlanLocalOnly True
+    | setPlanFnOutputs plan.getVivadoPlanFnOutputs
+    | setPlanResources plan.getVivadoPlanResources
+    | setPlanDirectory runDir
+    | editPlanEnvironment ("HOME={homeDir.getPathName}", _)
+    | runJob
+  def allOutputs = job.getJobOutputs
+  def bitstream =
+    filter (matches `.*\.bit` _.getPathName) allOutputs
+    | head
+    | getOrElse "vivado did not produce a .bit file: {format job.getJobStatus}".makeError.makeBadPath
+  VivadoOutput bitstream allOutputs
+
+tuple VivadoOutput =
+  global Bitstream:  Path
+  global AllOutputs: List Path

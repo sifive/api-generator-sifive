@@ -1,0 +1,107 @@
+def mustPass x = match x
+  Pass a = a
+  Fail b = panic b.format
+
+tuple TestFailed =
+  global Msg:    String
+  global Status: Option Integer
+
+global def makeTestFailed msg status = TestFailed msg status
+
+tuple TestPassed =
+  global Msg:    String
+
+global def makeTestPassed msg = TestPassed msg
+
+global data TestResult =
+  TestFail TestFailed
+  TestPass TestPassed
+
+global def makeTestResultPass msg        = TestPassed msg | TestPass
+global def makeTestResultFail msg status = TestFailed msg status | TestFail
+
+global def isTestResultPass = match _
+  TestPass _ = True
+  TestFail _ = False
+
+global def getTestResultMessage = match _
+  TestPass p = p.getTestPassedMsg
+  TestFail f = f.getTestFailedMsg
+
+global def getTestResultStatus = match _
+  TestPass _  = Some 0
+  TestFail f  = f.getTestFailedStatus
+
+tuple SimulationOutput =
+  Outputs_: List Path
+  Stdout_:  String
+  Stderr_:  String
+  Status_:  Integer
+
+def peelStatus = match _
+    Exited a = a
+    Signaled b = b
+    Aborted c = -999
+
+global def makeSimulationOutput job =
+  SimulationOutput
+  job.getJobFailedOutputs
+  (mustPass job.getJobStdout)
+  (mustPass job.getJobStderr)
+  (peelStatus job.getJobStatus)
+
+global def getSimulationOutputOutputs = getSimulationOutputOutputs_
+global def getSimulationOutputStdout  = getSimulationOutputStdout_
+global def getSimulationOutputStderr  = getSimulationOutputStderr_
+global def getSimulationOutputStatus  = getSimulationOutputStatus_
+
+tuple SimCheckerOptions =
+  global Filter:    SimChecker => Boolean
+  global OutputDir: String
+
+global def makeSimCheckerOptions filter outputDir =
+  SimCheckerOptions filter outputDir
+
+tuple SimCheckerPlan =
+  global Name:   String
+  global Score:  DUT => SimulationOutput => Double
+  global Result: DUT => SimulationOutput => SimCheckerOptions => TestResult
+  global Report: DUT => SimulationOutput => SimCheckerOptions => String
+
+global def makeSimCheckerPlan name score result report =
+  SimCheckerPlan name score result report
+
+tuple SimChecker =
+  global  Name:   String
+  Score:  DUT => SimulationOutput => Double
+  Result: DUT => SimulationOutput => SimCheckerOptions => TestResult
+  Report: DUT => SimulationOutput => SimCheckerOptions => String
+
+global def makeSimChecker plan =
+  def name   = plan.getSimCheckerPlanName
+  def score  = plan.getSimCheckerPlanScore
+  def result = plan.getSimCheckerPlanResult
+  def report = plan.getSimCheckerPlanReport
+  SimChecker name score result report
+
+global def reportSimulationOutputs checker dut simOutput =
+  checker.getSimCheckerReport dut simOutput
+
+global def makeSimulationChecker resulter reporter =
+  SimChecker resulter reporter
+
+global def simCheckerGetReport simOutput simChecker =
+  simChecker.getSimCheckerReport simOutput
+
+global def simCheckerGetResult simOutput simChecker =
+  simChecker.getSimCheckerResult simOutput
+
+global def applyPartialEdits plan edits edited =
+  edits
+  | mapPartial (_ plan)
+  | foldl (_._) edited
+
+global def applyEdits plan edits edited =
+  edits
+  | map (_ plan)
+  | foldl (_._) edited

@@ -1,0 +1,4 @@
+#!/bin/bash -x
+
+VERILATOR_PATH=$(which verilator)
+perl $VERILATOR_PATH "$@"
