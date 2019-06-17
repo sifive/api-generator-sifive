@@ -64,7 +64,7 @@ global def rocketChipDUTMaker dutPlan userArgs =
   def firrtlFile = rocketOutputs.getRocketChipGeneratorOutputsFirrtlFile
   def annoFile = rocketOutputs.getRocketChipGeneratorOutputsFirrtlAnnoFile
   def objectModelResult = match rocketOutputs.getRocketChipGeneratorOutputsObjectModelFile
-    None        = Fail (makeError "No object model file found!")
+    None        = Pass JNull# Fail (makeError "No object model file found!")
     Some omFile = parseJSONFile omFile
   def vsrcs = vlsiMemGen, firrtlOutputs.getInternalFirrtlOutputsVsrcs
   def blackboxes = firrtlOutputs.getInternalFirrtlOutputsBlackBoxes
@@ -151,7 +151,11 @@ def doFirrtlCompile dutPlan userArgs rocketOutputs = memoize 0 (
     "--split-modules",
     fct
   def inputs = verilogDir, firrtlFile, annoFile, cmdlineAnnoFile, jars
-  def firrtlOutputs = job cmdline inputs | getJobOutputs
+  def firrtlOutputs =
+    makePlan cmdline inputs
+    | editPlanEnvironment ("JAVA_OPTS=-Xss8M", _)
+    | runJob
+    | getJobOutputs
   def getFile name = filter (_.getPathName ==~ name) firrtlOutputs | head
   def blackBoxes = match blackBoxListFile.getFile
     None = Nil
