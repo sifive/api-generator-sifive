@@ -14,6 +14,8 @@ def getBuildTreeBootloaderDir (BuildTree root) = "{root}/bootloader"
 def getBuildTreeReportDir     buildRoot simulator programName =
   "{buildRoot.getBuildTreeSimExecuteDir simulator programName}/report"
 
+global def rtlTarget dut buildRoot = dut
+
 global def simTarget dut buildRoot simName waves =
   def dutTests = subscribe dutTests | filter (_.getDUTTestFilter dut)
   map (singleSimTarget simName waves dut buildRoot) dutTests
@@ -128,9 +130,12 @@ def simulatorToWaves = match _
   _               = False
 
 def defaultSim = Verilator
+
 global def runSim dut = runSimWith dut defaultSim
 
 global def runSimWith dut sim = runPlatform rocketChipPlatform dut simTarget sim.simulatorToString sim.simulatorToWaves
+
+global def makeRTL dut = runPlatform rocketChipPlatform dut rtlTarget
 
 global def runPlatform platform dutPlan targ =
   def buildTree = rootBuildTree
