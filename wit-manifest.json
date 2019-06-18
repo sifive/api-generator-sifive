@@ -1,0 +1,22 @@
+[
+    {
+        "commit": "85ac47e6f24692b5a3a4f0d46efb59a72bec4b51",
+        "name": "freedom-metal-wake",
+        "source": "git@github.com:sifive/freedom-metal-wake.git"
+    },
+    {
+        "commit": "d86129211e47de5be0a11738f394869c298f2128",
+        "name": "freedom-devicetree-tools",
+        "source": "git@github.com:sifive/freedom-devicetree-tools.git"
+    },
+    {
+        "commit": "2096d7034d18b3c86cdd3166a585e8a50d40a5ac",
+        "name": "rocket-chip-wake",
+        "source": "git@github.com:sifive/rocket-chip-wake.git"
+    },
+    {
+        "commit": "d3dd4ab0709cea9ffb6126e39966e3dc6a39cc3d",
+        "name": "chisel3-wake",
+        "source": "git@github.com:sifive/chisel3-wake.git"
+    }
+]
