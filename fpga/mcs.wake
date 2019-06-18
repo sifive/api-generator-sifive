@@ -1,0 +1,115 @@
+tuple BitstreamPlan =
+  global Name:      String
+  global Vendor:    String
+  global Board:     String
+  global TopModule: String
+  global TclFiles:  List Path
+  global OutputDir: String
+  global Vsrcs:     List Path
+  global Resources: List String
+  global UseDeputy: Boolean
+
+global def makeBitstreamPlan name vendor board topModule outputDir =
+  def resources = "xilinx/vivado/2018.2", Nil
+  BitstreamPlan name vendor board topModule Nil outputDir Nil resources False
+
+global target makeBitstream plan =
+  def name = plan.getBitstreamPlanName
+  def resources = plan.getBitstreamPlanResources
+  def outputDir = plan.getBitstreamPlanOutputDir
+  def designTopModule = plan.getBitstreamPlanTopModule
+  def vendor = plan.getBitstreamPlanVendor
+  def board = plan.getBitstreamPlanBoard
+  def useDeputy = plan.getBitstreamPlanUseDeputy
+
+  def vivadoBitstream =
+    def sourceTcl = source "fpga-shells/{vendor}/common/tcl/vivado.tcl"
+    def tclFiles = plan.getBitstreamPlanTclFiles
+    def vsrcs = plan.getBitstreamPlanVsrcs
+    def runDir = outputDir
+
+    def ffile =
+      map (relative runDir _.getPathName) vsrcs
+      | catWith "\n"
+      | write "{runDir}/verilog.F"
+
+    def tclArgs =
+      def tclsString =
+        tclFiles
+        | map (relative runDir _.getPathName)
+        | ("{catWith "  " _}")
+      "-top-module",     designTopModule,
+      "-board",          board,
+      "-F",              (relative runDir ffile.getPathName),
+      "-ip-vivado-tcls", tclsString,
+      Nil
+
+    def fnOutputs _ = files outputDir `.*\.bit`
+
+    makeVivadoPlan sourceTcl outputDir
+    | setVivadoPlanTclArgs tclArgs
+    | setVivadoPlanResources resources
+    | setVivadoPlanFnOutputs fnOutputs
+    | setVivadoPlanVisibleFiles (outputDir.mkdir, ffile, vsrcs ++ tclFiles)
+    | runVivado
+
+  BitstreamOutputs
+  vivadoBitstream.getVivadoOutputBitstream
+  vivadoBitstream.getVivadoOutputAllOutputs
+  plan
+
+tuple BitstreamOutputs =
+  global Bitstream:    Path
+  global AllOutputs:   List Path
+  global Plan:         BitstreamPlan
+
+tuple MCSPlan =
+  global ProgramImage: Option Path
+  global Bitstream: BitstreamOutputs
+
+global def makeMCSPlan bitstream = MCSPlan None bitstream
+
+global def makeMCS plan =
+  def bitstreamOutputs = plan.getMCSPlanBitstream
+  def bitstreamPlan = bitstreamOutputs.getBitstreamOutputsPlan
+  def bitstream = bitstreamOutputs.getBitstreamOutputsBitstream
+
+  def name      = bitstreamPlan.getBitstreamPlanName
+  def resources = bitstreamPlan.getBitstreamPlanResources
+  def outputDir = bitstreamPlan.getBitstreamPlanOutputDir
+  def vendor    = bitstreamPlan.getBitstreamPlanVendor
+  def board     = bitstreamPlan.getBitstreamPlanBoard
+  def useDeputy = bitstreamPlan.getBitstreamPlanUseDeputy
+  def programImgList =
+    plan.getMCSPlanProgramImage
+    | omap (_, Nil)
+    | getOrElse Nil
+
+  def outputFile = "{outputDir}/{board}.{name}.mcs"
+  def vivadoMCS =
+    def sourceTcl = source "fpga-shells/{vendor}/common/tcl/write_cfgmem.tcl"
+    def tclArgs =
+      board,
+      relative outputDir outputFile,
+      relative outputDir bitstream.getPathName,
+      map (relative outputDir _.getPathName) programImgList
+
+    makeVivadoPlan sourceTcl outputDir
+    | setVivadoPlanTclArgs tclArgs
+    | setVivadoPlanFnOutputs (\_ outputFile, Nil)
+    | setVivadoPlanResources resources
+    | setVivadoPlanVisibleFiles (outputDir.mkdir, bitstream, programImgList)
+    | runVivado
+
+  vivadoMCS
+  | getVivadoOutputAllOutputs
+  | head
+  | getOrElse "MCS failed: {outputFile}".makeError.makeBadPath
+  | MCSOutputs plan
+
+tuple MCSOutputs =
+  Plan_: MCSPlan
+  MCS_: Path
+
+global def getMCSOutputsPlan = getMCSOutputsPlan_
+global def getMCSOutputsMCS  = getMCSOutputsMCS_

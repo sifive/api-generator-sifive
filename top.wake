@@ -13,8 +13,23 @@ def getBuildTreeProgramDir    (BuildTree root) programName = "{root}/programs/{p
 def getBuildTreeBootloaderDir (BuildTree root) = "{root}/bootloader"
 def getBuildTreeReportDir     buildRoot simulator programName =
   "{buildRoot.getBuildTreeSimExecuteDir simulator programName}/report"
+def getBuildTreeMCSDir        (BuildTree root) = "{root}/mcs"
 
 global def rtlTarget dut buildRoot = dut
+
+global def vcu118BitstreamTarget dut buildRoot =
+  def name = dut.getDUTName
+  def vendor = "xilinx"
+  def board = "vcu118"
+  def tclFiles = filter (matches `.*\.vivado\.tcl` _.getPathName) dut.getDUTSources
+  def vsrcs = dut.getDUTVsrcs
+
+  def topModule = dut.getDUTTopModule
+
+  makeBitstreamPlan name vendor board topModule buildRoot.getBuildTreeMCSDir
+  | setBitstreamPlanVsrcs vsrcs
+  | setBitstreamPlanTclFiles tclFiles
+  | makeBitstream
 
 global def simTarget dut buildRoot simName waves =
   def dutTests = subscribe dutTests | filter (_.getDUTTestFilter dut)
@@ -137,8 +152,10 @@ global def runSimWith dut sim = runPlatform rocketChipPlatform dut simTarget sim
 
 global def makeRTL dut = runPlatform rocketChipPlatform dut rtlTarget
 
+global def runBitstream dut = runPlatform rocketChipPlatform dut vcu118BitstreamTarget
+
 global def runPlatform platform dutPlan targ =
-  def buildTree = rootBuildTree
+  def buildTree = buildTreeSubDir dutPlan.getRocketChipDUTPlanName rootBuildTree
   def dutResult = buildTree.platform dutPlan
   match dutResult
     Pass dut = targ dut buildTree

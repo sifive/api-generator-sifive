@@ -21,7 +21,7 @@ global def makeVivadoPlan source outputDir =
   (\x files "{outputDir}/obj" `.*`)
   Nil
 
-global def doVivado plan =
+global def runVivado plan =
   def outputDir = mkdir plan.getVivadoPlanOutputDir
   def homeDir = mkdir plan.getVivadoPlanHomeDir
   def runDir = outputDir.getPathName
