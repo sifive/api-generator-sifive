@@ -1,7 +1,7 @@
 tuple BuildTree =
   global Root: String
 
-global def rootBuildTree = BuildTree "build"
+global def rootBuildTree = BuildTree "build/{here}"
 global def buildTreeSubDir subdir (BuildTree root) = BuildTree "{root}/{subdir}".simplify
 
 def getBuildTreeFirrtlDir     (BuildTree root) = "{root}/firrtl"

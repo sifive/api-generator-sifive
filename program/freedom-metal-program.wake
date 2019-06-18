@@ -118,21 +118,10 @@ global def fixupDTS dts metalEntryPairOpt = memoize 0 (
 )
 
 global def generateMetalFromDts dts machineName outputDir =
-  def clkFrequency = 32500000
   def prefix = "{outputDir}/{machineName}"
-  def dtb = dtsTodtb dts "{prefix}.dtb"
-  def newDTS = dtbTodts dtb "{prefix}_new.dts"
-  def metalHeader =
-    makeFreedomMetalHeaderGeneratorOptions dtb "{prefix}.h"
-    | runFreedomMetalHeaderGenerator
-  def ldScript =
-    makeFreedomLdScriptGeneratorOptions dtb "{prefix}.lds"
-    | runFreedomLdScriptGenerator
-  def makeAttributes =
-    makeFreedomMakeAttributesGeneratorOptions dtb "{prefix}.config"
-    | runFreedomMakeAttributesGenerator
-
-  def runMetalInstall attributes =
+  def bsp = makeFreedomBSP dts prefix
+  def runMetalInstall bsp =
+    def attributes = bsp.getFreedomBSPAttributes
     makeFreedomMetalConfigureOptions
     attributes.getFreedomMakeAttributesMARCH
     attributes.getFreedomMakeAttributesMABI
@@ -140,10 +129,12 @@ global def generateMetalFromDts dts machineName outputDir =
     "riscv64-unknown-elf"
     outputDir
     machineName
-    metalHeader
-    ldScript
+    bsp.getFreedomBSPHeader
+    bsp.getFreedomBSPInlineHeader
+    bsp.getFreedomBSPPlatformHeader
+    bsp.getFreedomBSPLinkerScript
     | runFreedomMetalInstall
-  rmap runMetalInstall makeAttributes
+  rmap runMetalInstall bsp
 
 global def makeFreedomMetalProgram metalInstall gccProgramPlan =
   def march = metalInstall.getMachineExecutionEnvironmentRISCV_ARCH
