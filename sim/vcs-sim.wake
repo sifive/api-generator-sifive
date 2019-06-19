@@ -1,0 +1,234 @@
+tuple VCSDUTSimulatorPlan =
+  global TestDriver:     String
+  global Waves:          Boolean
+  global Score:          DUT => DUTSimCompileOptions => DUTSimExecuteOptions => UserSimulationOptions => Double
+  global CompileOptions: DUT => PrivateVCSDUTSimCompileOptions
+  global ExecuteOptions: DUT => PrivateVCSDUTSimExecuteOptions
+
+def makeVCSDUTSimulatorPlan testDriver waves score compileOptions executeOptions =
+  VCSDUTSimulatorPlan testDriver waves score compileOptions executeOptions
+
+
+tuple VCSDUTSimCompileOptions =
+  global GenericOpts: DUTSimCompileOptions
+  global ExtraArgs:   List NamedArg
+
+global def getVCSDUTSimCompileOptionsIncludeDirs = _.getVCSDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsIncludeDirs
+global def getVCSDUTSimCompileOptionsDefines     = _.getVCSDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsDefines
+global def getVCSDUTSimCompileOptionsSourceFiles = _.getVCSDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsSourceFiles
+global def getVCSDUTSimCompileOptionsPlusargs    = _.getVCSDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsPlusargs
+
+global def setVCSDUTSimCompileOptionsIncludeDirs v = editVCSDUTSimCompileOptionsIncludeDirs (\_ v)
+global def setVCSDUTSimCompileOptionsDefines     v = editVCSDUTSimCompileOptionsDefines     (\_ v)
+global def setVCSDUTSimCompileOptionsSourceFiles v = editVCSDUTSimCompileOptionsSourceFiles (\_ v)
+global def setVCSDUTSimCompileOptionsPlusargs    v = editVCSDUTSimCompileOptionsPlusargs    (\_ v)
+
+global def editVCSDUTSimCompileOptionsIncludeDirs f = editVCSDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsIncludeDirs f)
+global def editVCSDUTSimCompileOptionsDefines     f = editVCSDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsDefines f)
+global def editVCSDUTSimCompileOptionsSourceFiles f = editVCSDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsSourceFiles f)
+global def editVCSDUTSimCompileOptionsPlusargs    f = editVCSDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsPlusargs f)
+
+
+tuple PrivateVCSDUTSimCompileOptions =
+  global DUTOpts:      VCSDUTSimCompileOptions
+  global VCSResources: List String
+
+global def getPrivateVCSDUTSimCompileOptionsIncludeDirs = _.getPrivateVCSDUTSimCompileOptionsDUTOpts.getVCSDUTSimCompileOptionsIncludeDirs
+global def getPrivateVCSDUTSimCompileOptionsDefines     = _.getPrivateVCSDUTSimCompileOptionsDUTOpts.getVCSDUTSimCompileOptionsDefines
+global def getPrivateVCSDUTSimCompileOptionsSourceFiles = _.getPrivateVCSDUTSimCompileOptionsDUTOpts.getVCSDUTSimCompileOptionsSourceFiles
+global def getPrivateVCSDUTSimCompileOptionsPlusargs    = _.getPrivateVCSDUTSimCompileOptionsDUTOpts.getVCSDUTSimCompileOptionsPlusargs
+global def getPrivateVCSDUTSimCompileOptionsExtraArgs   = _.getPrivateVCSDUTSimCompileOptionsDUTOpts.getVCSDUTSimCompileOptionsExtraArgs
+
+global def setPrivateVCSDUTSimCompileOptionsIncludeDirs v = editPrivateVCSDUTSimCompileOptionsIncludeDirs (\_ v)
+global def setPrivateVCSDUTSimCompileOptionsDefines     v = editPrivateVCSDUTSimCompileOptionsDefines     (\_ v)
+global def setPrivateVCSDUTSimCompileOptionsSourceFiles v = editPrivateVCSDUTSimCompileOptionsSourceFiles (\_ v)
+global def setPrivateVCSDUTSimCompileOptionsPlusargs    v = editPrivateVCSDUTSimCompileOptionsPlusargs    (\_ v)
+global def setPrivateVCSDUTSimCompileOptionsExtraArgs   v = editPrivateVCSDUTSimCompileOptionsExtraArgs   (\_ v)
+
+global def editPrivateVCSDUTSimCompileOptionsIncludeDirs f = editPrivateVCSDUTSimCompileOptionsDUTOpts (editVCSDUTSimCompileOptionsIncludeDirs f)
+global def editPrivateVCSDUTSimCompileOptionsDefines     f = editPrivateVCSDUTSimCompileOptionsDUTOpts (editVCSDUTSimCompileOptionsDefines f)
+global def editPrivateVCSDUTSimCompileOptionsSourceFiles f = editPrivateVCSDUTSimCompileOptionsDUTOpts (editVCSDUTSimCompileOptionsSourceFiles f)
+global def editPrivateVCSDUTSimCompileOptionsPlusargs    f = editPrivateVCSDUTSimCompileOptionsDUTOpts (editVCSDUTSimCompileOptionsPlusargs f)
+global def editPrivateVCSDUTSimCompileOptionsExtraArgs   f = editPrivateVCSDUTSimCompileOptionsDUTOpts (editVCSDUTSimCompileOptionsExtraArgs f)
+
+global def makePrivateVCSDUTSimCompileOptions =
+  PrivateVCSDUTSimCompileOptions (VCSDUTSimCompileOptions emptyDUTSimCompileOptions Nil) defaultVCSResources
+
+def toVCSSimCompilePlan privateOpts outputDir =
+  def dutOpts      = privateOpts.getPrivateVCSDUTSimCompileOptionsDUTOpts
+
+  def resources    = privateOpts.getPrivateVCSDUTSimCompileOptionsVCSResources
+  def includeDirs  = privateOpts.getPrivateVCSDUTSimCompileOptionsIncludeDirs
+  def defines      = privateOpts.getPrivateVCSDUTSimCompileOptionsDefines
+  def sourceFiles  = privateOpts.getPrivateVCSDUTSimCompileOptionsSourceFiles
+  def plusargs     = privateOpts.getPrivateVCSDUTSimCompileOptionsPlusargs
+  def extraArgs    = privateOpts.getPrivateVCSDUTSimCompileOptionsExtraArgs
+
+  makeVCSCompilePlan sourceFiles outputDir
+  | setVCSCompilePlanResources   resources
+  | setVCSCompilePlanExtraArgs   extraArgs
+  | setVCSCompilePlanIncludeDirs includeDirs
+  | setVCSCompilePlanDefines     defines
+  | setVCSCompilePlanPlusargs    plusargs
+
+tuple VCSDUTSimExecuteOptions =
+  global GenericOpts: DUTSimExecuteOptions
+  global ExtraArgs:   List NamedArg
+
+global def getVCSDUTSimExecuteOptionsPlusargs     = _.getVCSDUTSimExecuteOptionsGenericOpts.getDUTSimExecuteOptionsPlusargs
+global def getVCSDUTSimExecuteOptionsVisibleFiles = _.getVCSDUTSimExecuteOptionsGenericOpts.getDUTSimExecuteOptionsVisibleFiles
+
+global def setVCSDUTSimExecuteOptionsPlusargs     v = editVCSDUTSimExecuteOptionsPlusargs     (\_ v)
+global def setVCSDUTSimExecuteOptionsVisibleFiles v = editVCSDUTSimExecuteOptionsVisibleFiles (\_ v)
+
+global def editVCSDUTSimExecuteOptionsPlusargs     f = editVCSDUTSimExecuteOptionsGenericOpts (editDUTSimExecuteOptionsPlusargs f)
+global def editVCSDUTSimExecuteOptionsVisibleFiles f = editVCSDUTSimExecuteOptionsGenericOpts (editDUTSimExecuteOptionsVisibleFiles f)
+
+
+tuple PrivateVCSDUTSimExecuteOptions =
+  global DUTOpts: VCSDUTSimExecuteOptions
+
+global def makePrivateVCSDUTSimExecuteOptions =
+   PrivateVCSDUTSimExecuteOptions (VCSDUTSimExecuteOptions emptyDUTSimExecuteOptions Nil)
+
+global def getPrivateVCSDUTSimExecuteOptionsPlusargs     = _.getPrivateVCSDUTSimExecuteOptionsDUTOpts.getVCSDUTSimExecuteOptionsPlusargs
+global def getPrivateVCSDUTSimExecuteOptionsVisibleFiles = _.getPrivateVCSDUTSimExecuteOptionsDUTOpts.getVCSDUTSimExecuteOptionsVisibleFiles
+global def getPrivateVCSDUTSimExecuteOptionsExtraArgs    = _.getPrivateVCSDUTSimExecuteOptionsDUTOpts.getVCSDUTSimExecuteOptionsExtraArgs
+
+global def setPrivateVCSDUTSimExecuteOptionsPlusargs     v = editPrivateVCSDUTSimExecuteOptionsPlusargs     (\_ v)
+global def setPrivateVCSDUTSimExecuteOptionsVisibleFiles v = editPrivateVCSDUTSimExecuteOptionsVisibleFiles (\_ v)
+global def setPrivateVCSDUTSimExecuteOptionsExtraArgs    v = editPrivateVCSDUTSimExecuteOptionsExtraArgs    (\_ v)
+
+global def editPrivateVCSDUTSimExecuteOptionsPlusargs     f = editPrivateVCSDUTSimExecuteOptionsDUTOpts (editVCSDUTSimExecuteOptionsPlusargs f)
+global def editPrivateVCSDUTSimExecuteOptionsVisibleFiles f = editPrivateVCSDUTSimExecuteOptionsDUTOpts (editVCSDUTSimExecuteOptionsVisibleFiles f)
+global def editPrivateVCSDUTSimExecuteOptionsExtraArgs    f = editPrivateVCSDUTSimExecuteOptionsDUTOpts (editVCSDUTSimExecuteOptionsExtraArgs f)
+
+
+def toVCSSimExecutePlan opts compileOutputs outputDir =
+  def plusargs     = opts.getPrivateVCSDUTSimExecuteOptionsPlusargs
+  def visibleFiles = opts.getPrivateVCSDUTSimExecuteOptionsVisibleFiles
+  def extraArgs    = opts.getPrivateVCSDUTSimExecuteOptionsExtraArgs
+
+  makeVCSExecutePlan compileOutputs outputDir
+  | setVCSExecutePlanPlusargs     plusargs
+  | setVCSExecutePlanVisibleFiles visibleFiles
+  | setVCSExecutePlanExtraArgs    extraArgs
+
+
+# takes a VCSDUTSimulatorPlan and makes a DUTSimulator
+global def makeVCSDUTSimulator plan =
+  def simName   = "vcs"
+  def simVendor = "synopsys"
+  def testDriver = plan.getVCSDUTSimulatorPlanTestDriver
+  def waves  = plan.getVCSDUTSimulatorPlanWaves
+  def score  = plan.getVCSDUTSimulatorPlanScore
+
+  def imp dut rawCompileOptions rawExecuteOptions userOptions =
+    def filter sim = dutSimulatorNameEquals simName sim && dutSimulatorVendorEquals simVendor sim
+
+    def compileOutputs =
+      def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsCompilePlusargs
+      def appendDUTOptions = editVCSDUTSimCompileOptionsGenericOpts (appendDUTSimCompileOptions rawCompileOptions)
+      def privateOpts =
+        plan.getVCSDUTSimulatorPlanCompileOptions dut
+        | editPrivateVCSDUTSimCompileOptionsDUTOpts appendDUTOptions
+        | editPrivateVCSDUTSimCompileOptionsPlusargs appendUserPlusargs
+        | applyPartialEdits dut (subscribe vcsDUTSimCompileOptionsHooks)
+      def outputDir = userOptions.getUserSimulationOptionsCompileOutputDir
+      toVCSSimCompilePlan privateOpts outputDir
+      | doVCSCompile
+
+    def executeOutputs =
+      def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsExecutePlusargs
+      def appendDUTOptions = editVCSDUTSimExecuteOptionsGenericOpts (appendDUTSimExecuteOptions rawExecuteOptions)
+      def privateOpts =
+        plan.getVCSDUTSimulatorPlanExecuteOptions dut
+        | editPrivateVCSDUTSimExecuteOptionsDUTOpts appendDUTOptions
+        | editPrivateVCSDUTSimExecuteOptionsPlusargs appendUserPlusargs
+        | applyPartialEdits dut (subscribe vcsDUTSimExecuteOptionsHooks)
+      def outputDir = userOptions.getUserSimulationOptionsExecuteOutputDir
+      toVCSSimExecutePlan privateOpts compileOutputs outputDir
+      | doVCSExecute
+
+    executeOutputs
+    | getVCSExecuteOutputsJob
+    | makeSimulationOutput
+
+  makeDUTSimulatorPlan simName simVendor testDriver waves score imp
+  | makeDUTSimulator
+
+
+def vcsCompileOptsExtract waves dut =
+
+  def extraArgs =
+    NamedArg "-full64",             NamedArg "-notice",      NamedArg "-error=VCM-HFUFR",
+    NamedArg "-error=LFCOR",        NamedArg "-error=CFCOR", NamedArg "-error=BMII",
+    NamedArg "-timescale=1ns/10ps", NamedArg "-quiet",       NamedArg "+vcs+lic+wait",
+    NamedArg "-Mupdate",            NamedArg "+vc+list",     NamedArg "-sverilog",
+    NamedArg "-ntb_opts",           NamedArg "uvm-1.2",      NamedArg "-j4",
+    NamedArg "+rad",                NamedArg "-hsopt=gates", NamedArg "-O3",
+    NamedArg "-reportstats",        NamedArg "-assert",      NamedArg "svaext",
+    NamedArg "-LDFLAGS -lrt",       Nil
+
+  def withWavesOptions opts =
+    if waves
+    then
+      def withExtraArgs =
+        NamedArg "-kdb",
+        NamedArg "-lca",
+        NamedArg "-debug_access+r+line+class+driver",
+        NamedArg "-LDFLAGS",
+        NamedArg "-fno-lto",
+        _
+      def withDefines =
+        NamedArg "SVT_FSDB_ENABLE",
+        NamedArg "DEBUG",
+        _
+      opts
+      | editPrivateVCSDUTSimCompileOptionsExtraArgs withExtraArgs
+      | editPrivateVCSDUTSimCompileOptionsDefines withDefines
+    else opts
+
+  def genericOpts = freedomTestDriverSimCompileOpts dut
+
+  makePrivateVCSDUTSimCompileOptions
+  | editPrivateVCSDUTSimCompileOptionsDUTOpts (setVCSDUTSimCompileOptionsGenericOpts genericOpts)
+  | setPrivateVCSDUTSimCompileOptionsExtraArgs extraArgs
+  | editPrivateVCSDUTSimCompileOptionsDefines (NamedArg "VCS", _)
+  | withWavesOptions
+
+def vcsExecuteOptsExtract waves dut =
+  def withExtraArgs =
+    NamedArgString "-assert" "old_ctrl_msg",
+    NamedArgString "-assert" "nopostproc",
+    NamedArgString "-assert" "global_finish_maxfail=10",
+    NamedArg "-error=STASKW_CO1",
+    NamedArg "-error=STASKW_RMCOF",
+    NamedArg "-error=STASKW_RMIEAFL",
+    NamedArg "-error=PHNE",
+    _
+
+  def withWavesOptions opts =
+    if waves
+    then opts | editPrivateVCSDUTSimExecuteOptionsPlusargs (NamedArgString "vcdplusfile" "sim.vpd", _)
+    else opts
+
+  def genericOpts = freedomTestDriverSimExecuteOpts dut
+
+  makePrivateVCSDUTSimExecuteOptions
+  | editPrivateVCSDUTSimExecuteOptionsDUTOpts (setVCSDUTSimExecuteOptionsGenericOpts genericOpts)
+  | editPrivateVCSDUTSimExecuteOptionsExtraArgs withExtraArgs
+  | withWavesOptions
+
+def makeFreedomVCSDUTSimulator waves =
+  def name = "vcs"
+  def score = (\_ \_ \_ \_ 1.0) # TODO
+  def compileOptions = vcsCompileOptsExtract waves
+  def executeOptions = vcsExecuteOptsExtract waves
+  makeVCSDUTSimulatorPlan name waves score compileOptions executeOptions
+  | makeVCSDUTSimulator
+
+
+publish dutSimulators = freedomVCSDUTSimulator, freedomVCSWavesDUTSimulator, Nil
+global def freedomVCSDUTSimulator = makeFreedomVCSDUTSimulator False
+global def freedomVCSWavesDUTSimulator = makeFreedomVCSDUTSimulator True

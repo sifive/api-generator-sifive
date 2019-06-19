@@ -1,0 +1,153 @@
+tuple XceliumCompilePlan =
+  global Resources:   List String
+  global IncludeDirs: List String
+  global Defines:     List NamedArg
+  global SourceFiles: List Path
+  global Plusargs:    List NamedArg
+  global ExtraArgs:   List NamedArg
+  global FHomeDir:    String # func from output dir to home dir
+  global OutputDir:   String
+
+def defaultXceliumVersion = "cadence/xcelium/18.09.004"
+
+global def makeXceliumCompilePlan sourceFiles outputDir =
+  XceliumCompilePlan
+  (defaultXceliumVersion, Nil) # Resources
+  Nil                # IncludeDirs
+  Nil                # Defines
+  sourceFiles        # Files
+  Nil                # Plusargs
+  Nil                # ExtraArgs
+  "{outputDir}/home" # FHomeDir
+  outputDir          # OutputDir
+
+def compileCmdlineArgs options =
+  def outputDir    = options.getXceliumCompilePlanOutputDir
+  def plusargs     = options.getXceliumCompilePlanPlusargs
+  def includeDirs  = options.getXceliumCompilePlanIncludeDirs
+  def defines      = options.getXceliumCompilePlanDefines
+  def rawFiles     = options.getXceliumCompilePlanSourceFiles
+  def otherArgs    = namedArgsToListString runDir options.getXceliumCompilePlanExtraArgs
+
+  def files = distinctBy (scmpIdentifier _.getPathName _.getPathName) rawFiles
+  def runDir = outputDir
+
+  def includeArgs = map (\i "+incdir+{relative runDir i}") includeDirs
+  def defineArgs  = namedArgsToCmdline runDir "+define+" "=" defines
+  def plusargArgs = namedArgsToCmdline runDir "+" "=" plusargs
+  def fileArgs = map (relative runDir _.getPathName) files
+
+  includeArgs
+  ++ defineArgs
+  ++ plusargArgs
+  ++ otherArgs
+  ++ fileArgs
+
+def compileInputs options =
+  def outputDir    = options.getXceliumCompilePlanOutputDir
+  def includeDirs  = options.getXceliumCompilePlanIncludeDirs
+  def srcFiles     = options.getXceliumCompilePlanSourceFiles
+  def homeDir      = options.getXceliumCompilePlanFHomeDir
+
+  def includeSources = map (sources _ `.*`) includeDirs | flatten
+  def homeSources = sources homeDir `.*`
+
+  mkdir outputDir, includeSources ++ srcFiles ++ homeSources# ++ includeDirs
+
+global def doXceliumCompile options =
+  def outputDir = options.getXceliumCompilePlanOutputDir
+  def cmdline = "xrun", options.compileCmdlineArgs
+
+  def inputs = options.compileInputs
+
+  def homeDirEnv =
+    def rawHomeDir = options.getXceliumCompilePlanFHomeDir
+    def homeDir = mkdir rawHomeDir
+    "HOME={relative outputDir homeDir.getPathName}"
+
+  def foutputs _ =
+    def allIn subDir = files "{outputDir}/xcelium.d/{subDir}" `.*`
+    files outputDir `.*`
+  def xrunJob =
+    makePlan cmdline inputs
+    | setPlanLocalOnly True
+    | setPlanFnOutputs foutputs
+    | setPlanDirectory outputDir
+    | editPlanEnvironment (homeDirEnv, _)
+    | setPlanResources options.getXceliumCompilePlanResources
+    | runJob
+  def xrunOutputs = xrunJob.getJobOutputs
+  XceliumCompileOutputs options xrunOutputs
+
+tuple XceliumCompileOutputs =
+  global InputOptions: XceliumCompilePlan
+  global AllOutputs:   List Path
+
+
+tuple XceliumExecutePlan =
+  global Resources:      List String
+  global ExtraArgs:      List NamedArg
+  global OutputDir:      String
+  global Plusargs:       List NamedArg
+  global VisibleFiles:   List Path
+  global CompileOutputs: XceliumCompileOutputs
+
+global def makeXceliumExecutePlan compileOuts outputDir =
+  XceliumExecutePlan
+  (defaultXceliumVersion, Nil) # Resources
+  Nil         # ExtraArgs
+  outputDir   # OutputDir
+  Nil         # Plusargs
+  Nil         # VisibleFiles
+  compileOuts # CompileOutputs
+
+global def doXceliumExecute options =
+  def outputDir = options.getXceliumExecutePlanOutputDir
+  def compileOutputs = options.getXceliumExecutePlanCompileOutputs
+  def compileOptions = compileOutputs.getXceliumCompileOutputsInputOptions
+
+  def inputs =
+    def compileDir = compileOutputs.getXceliumCompileOutputsInputOptions.getXceliumCompilePlanOutputDir.mkdir
+    def allCompileOutputs = compileOutputs.getXceliumCompileOutputsAllOutputs
+    def extraSources = options.getXceliumExecutePlanVisibleFiles
+    compileDir, homeDir, mkdir outputDir, allCompileOutputs ++ extraSources
+
+  def cmdline =
+    def xmLibDir =
+      "-xmlibdirpath",
+      relative outputDir compileOptions.getXceliumCompilePlanOutputDir,
+      Nil
+    def base = "xrun", Nil
+    def extraArgs = namedArgsToListString outputDir options.getXceliumExecutePlanExtraArgs
+    def plusargs = namedArgsToCmdline outputDir "+" "=" options.getXceliumExecutePlanPlusargs
+    base ++ plusargs ++ extraArgs ++ xmLibDir
+
+  def rawHomeDir = compileOptions.getXceliumCompilePlanFHomeDir
+  def homeDir = mkdir rawHomeDir
+  def homeDirEnv = "HOME={relative outputDir homeDir.getPathName}"
+
+  def fnOutputs outputs =
+    def compileDir = compileOptions.getXceliumCompilePlanOutputDir
+    def compileDirRegExp = regExpCat (compileDir.simplify.quote, `/.*`, Nil)
+    filter (\p !(matches compileDirRegExp) p) outputs
+
+  def jobResult =
+    makePlan cmdline inputs
+    | setPlanDirectory outputDir
+    | setPlanFnOutputs fnOutputs
+    | editPlanEnvironment (homeDirEnv, _)
+    | setPlanResources options.getXceliumExecutePlanResources
+    | runJob
+
+  XceliumExecuteOutputs options jobResult
+
+tuple XceliumExecuteOutputs =
+  InputOptions_:       XceliumExecutePlan
+  Job_:                Job
+
+global def getXceliumExecuteOutputsRawOutputs   = _.getXceliumExecuteOutputsJob_.getJobFailedOutputs
+global def getXceliumExecuteOutputsStdout       = _.getXceliumExecuteOutputsJob_.getJobStdout
+global def getXceliumExecuteOutputsStderr       = _.getXceliumExecuteOutputsJob_.getJobStderr
+global def getXceliumExecuteOutputsStatus       = _.getXceliumExecuteOutputsJob_.getJobStatus
+global def getXceliumExecuteOutputsInputOptions = getXceliumExecuteOutputsInputOptions_
+global def getXceliumExecuteOutputsJob          = getXceliumExecuteOutputsJob_
