@@ -1,0 +1,139 @@
+tuple VCSCompilePlan =
+  global Resources:   List String
+  global IncludeDirs: List String
+  global Defines:     List NamedArg
+  global SourceFiles: List Path
+  global Plusargs:    List NamedArg
+  global ExtraArgs:   List NamedArg
+  global TmpDir:      String
+  global OutputDir:   String
+
+def dir / subdir = "{dir.getPathName}/{subdir}"
+
+global def defaultVCSResources = "synopsys/vcs/M-2017.03-SP2", Nil
+
+global def makeVCSCompilePlan sourceFiles outputDir =
+  VCSCompilePlan
+  defaultVCSResources   # Resources
+  Nil                   # IncludeDirs
+  Nil                   # Defines
+  sourceFiles           # Files
+  Nil                   # Plusargs
+  Nil                   # ExtraArgs
+  "{outputDir}/tmp"     # TmpDir
+  outputDir             # OutputDir
+
+def compileCmdlineArgs options =
+  def outputDir    = options.getVCSCompilePlanOutputDir
+  def includeDirs  = options.getVCSCompilePlanIncludeDirs
+  def defines      = options.getVCSCompilePlanDefines
+  def plusargs     = options.getVCSCompilePlanPlusargs
+  def rawFiles     = options.getVCSCompilePlanSourceFiles
+  def otherArgs    = namedArgsToListString runDir options.getVCSCompilePlanExtraArgs
+
+  def files = distinctBy (scmpIdentifier _.getPathName _.getPathName) rawFiles
+  def runDir = outputDir
+
+  def includeArgs = map (\i "+incdir+{relative runDir i}") includeDirs
+  def defineArgs  = namedArgsToCmdline runDir "+define+" "=" defines
+  def plusargArgs = namedArgsToCmdline runDir "+" "=" plusargs
+  def fileArgs    = map (relative runDir _.getPathName) files
+
+  includeArgs
+  ++ defineArgs
+  ++ plusargArgs
+  ++ otherArgs
+  ++ fileArgs
+
+def compileInputs options =
+  def outputDir    = options.getVCSCompilePlanOutputDir
+  def includeDirs  = options.getVCSCompilePlanIncludeDirs
+  def srcFiles     = options.getVCSCompilePlanSourceFiles
+  def tmpDir       = options.getVCSCompilePlanTmpDir
+
+  def includeSources = map (sources _ `.*`) includeDirs | flatten
+
+  mkdir tmpDir, mkdir outputDir, includeSources ++ srcFiles
+
+global def doVCSCompile options =
+  def outputDir = options.getVCSCompilePlanOutputDir
+  def cmdline = "vcs", options.compileCmdlineArgs
+  def inputs = options.compileInputs
+
+  def tmpDirEnv =
+    def rawTmpDir = options.getVCSCompilePlanTmpDir
+    def tmpDir = mkdir rawTmpDir
+    "TMPDIR={relative outputDir tmpDir.getPathName}"
+  def foutputs _ =
+    "{outputDir}/simv", "{outputDir}/vc_hdrs.h",
+    files "{outputDir}/simv.daidir" `.*`
+  def vcsJob =
+    makePlan cmdline inputs
+    | setPlanLocalOnly True
+    | setPlanFnOutputs foutputs
+    | setPlanDirectory outputDir
+    | setPlanResources options.getVCSCompilePlanResources
+    | runJob
+  def vcsOutputs = vcsJob.getJobOutputs
+
+  def simv =
+    def simvFilename = "{outputDir}/simv"
+    def findSimv = find (matches simvFilename.quote _.getPathName) vcsOutputs
+    match findSimv
+      None            = "VCS compile failed!".makeError.makeBadPath
+      Some (Pair s _) = s
+
+  VCSCompileOutputs vcsOutputs options simv
+
+tuple VCSCompileOutputs =
+  AllOutputs_:   List Path
+  Plan_:         VCSCompilePlan
+  Simv_:         Path
+
+global def getVCSCompileOutputsAllOutputs = getVCSCompileOutputsAllOutputs_
+global def getVCSCompileOutputsPlan       = getVCSCompileOutputsPlan_
+global def getVCSCompileOutputsSimv       = getVCSCompileOutputsSimv_
+
+
+tuple VCSExecutePlan =
+  global OutputDir:      String
+  global Plusargs:       List NamedArg
+  global VisibleFiles:   List Path
+  global CompileOutputs: VCSCompileOutputs
+  global ExtraArgs:      List NamedArg
+
+global def makeVCSExecutePlan compileOutputs outputDir =
+  VCSExecutePlan outputDir Nil Nil compileOutputs Nil
+
+global def doVCSExecute options =
+  def compileOutputs = options.getVCSExecutePlanCompileOutputs
+  def simv = compileOutputs.getVCSCompileOutputsSimv
+  def outputDir = options.getVCSExecutePlanOutputDir
+
+  def inputs =
+    def allCompileOutputs = compileOutputs.getVCSCompileOutputsAllOutputs
+    def extraSources = options.getVCSExecutePlanVisibleFiles
+    mkdir outputDir, simv, (allCompileOutputs ++ extraSources)
+
+  def cmdline =
+    def plusargs = namedArgsToCmdline outputDir "+" "=" options.getVCSExecutePlanPlusargs
+    def extraArgs = namedArgsToListString outputDir options.getVCSExecutePlanExtraArgs
+    relative outputDir simv.getPathName, (extraArgs ++ plusargs)
+
+  def jobResult =
+    makePlan cmdline inputs
+    | setPlanDirectory outputDir
+    | runJob
+
+  VCSExecuteOutputs options jobResult
+
+tuple VCSExecuteOutputs =
+  Plan_: VCSExecutePlan
+  Job_:  Job
+
+global def getVCSExecuteOutputsRawOutputs = _.getVCSExecuteOutputsJob_.getJobFailedOutputs
+global def getVCSExecuteOutputsStdout     = _.getVCSExecuteOutputsJob_.getJobStdout
+global def getVCSExecuteOutputsStderr     = _.getVCSExecuteOutputsJob_.getJobStderr
+global def getVCSExecuteOutputsStatus     = _.getVCSExecuteOutputsJob_.getJobStatus
+global def getVCSExecuteOutputsPlan       = getVCSExecuteOutputsPlan_
+global def getVCSExecuteOutputsJob        = getVCSExecuteOutputsJob_
