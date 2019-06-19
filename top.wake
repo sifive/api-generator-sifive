@@ -22,7 +22,12 @@ global def vcu118BitstreamTarget dut buildRoot =
   def vendor = "xilinx"
   def board = "vcu118"
   def tclFiles = filter (matches `.*\.vivado\.tcl` _.getPathName) dut.getDUTSources
-  def vsrcs = dut.getDUTVsrcs
+  def vsrcs =
+    subscribe vivadoVsrcHooks
+    | mapPartial (_ dut)
+    | map (_ Unit)
+    | flatten
+    | (dut.getDUTVsrcs ++ _)
 
   def topModule = dut.getDUTTopModule
 
