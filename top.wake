@@ -166,8 +166,7 @@ global def runPlatform platform dutPlan targ =
     Pass dut = targ dut buildTree
     Fail e   = panic "DUT compilation failed: {format e}"
 
-global def rocketChipPlatform rawBuildRoot =
-  def buildRoot = rawBuildRoot | editBuildTreeRoot ("{_}/{here}")
+global def rocketChipPlatform buildRoot =
   (rocketChipDUTMaker _ buildRoot.userDUTArgs)
 
 def userDUTArgs buildRoot =
