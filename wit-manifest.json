@@ -10,13 +10,8 @@
         "source": "git@github.com:sifive/freedom-devicetree-tools.git"
     },
     {
-        "commit": "2096d7034d18b3c86cdd3166a585e8a50d40a5ac",
+        "commit": "dcfcf02f27d787615c515988a26202f0f6a0d11a",
         "name": "rocket-chip-wake",
         "source": "git@github.com:sifive/rocket-chip-wake.git"
-    },
-    {
-        "commit": "d3dd4ab0709cea9ffb6126e39966e3dc6a39cc3d",
-        "name": "chisel3-wake",
-        "source": "git@github.com:sifive/chisel3-wake.git"
     }
 ]
