@@ -151,7 +151,7 @@ global def makeVerilatorDUTSimulator plan =
 
     def compileOutputs =
       def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsCompilePlusargs
-      def appendDUTOptions = editVerilatorDUTSimCompileOptionsGenericOpts (appendDUTSimCompileOptions rawCompileOptions)
+      def appendDUTOptions = editVerilatorDUTSimCompileOptionsGenericOpts (appendDUTSimCompileOptions dut.getDUTSimCompileOptions)
       def privateOpts =
         plan.getVerilatorDUTSimulatorPlanCompileOptions dut
         | editPrivateVerilatorDUTSimCompileOptionsDUTOpts appendDUTOptions
@@ -183,9 +183,11 @@ global def makeVerilatorDUTSimulator plan =
 global def verilatorCompile dut userOptions =
   def compileOutputs =
     def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsCompilePlusargs
+    def appendDUTOptions = editVerilatorDUTSimCompileOptionsGenericOpts (appendDUTSimCompileOptions dut.getDUTSimulationOptions.getDUTSimulationOptionsCompileOptions)
     def privateOpts =
       verilatorCompileOptsExtract False dut
       | editPrivateVerilatorDUTSimCompileOptionsPlusargs appendUserPlusargs
+      | editPrivateVerilatorDUTSimCompileOptionsDUTOpts appendDUTOptions
       | applyPartialEdits dut (subscribe verilatorDUTSimCompileOptionsHooks)
     def outputDir = userOptions.getUserSimulationOptionsCompileOutputDir
     toVerilatorSimCompilePlan privateOpts outputDir
