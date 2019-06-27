@@ -17,6 +17,10 @@ def getBuildTreeMCSDir        (BuildTree root) = "{root}/mcs"
 
 global def rtlTarget dut buildRoot = dut
 
+global def compileSimTarget dut buildRoot =
+  def opts = makeUserSimulationOptions "verilator" False (buildRoot.getBuildTreeSimulationDir "verilator")
+  verilatorCompile dut opts
+
 global def vcu118BitstreamTarget dut buildRoot =
   def name = dut.getDUTName
   def vendor = "xilinx"
@@ -156,6 +160,8 @@ global def runSim dut = runSimWith dut defaultSim
 global def runSimWith dut sim = runPlatform rocketChipPlatform dut simTarget sim.simulatorToString sim.simulatorToWaves
 
 global def makeRTL dut = runPlatform rocketChipPlatform dut rtlTarget
+
+global def compileSim dut = runPlatform rocketChipPlatform dut compileSimTarget
 
 global def runBitstream dut = runPlatform rocketChipPlatform dut vcu118BitstreamTarget
 

@@ -180,6 +180,18 @@ global def makeVerilatorDUTSimulator plan =
   makeDUTSimulatorPlan simName simVendor testDriver waves score imp
   | makeDUTSimulator
 
+global def verilatorCompile dut userOptions =
+  def compileOutputs =
+    def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsCompilePlusargs
+    def privateOpts =
+      verilatorCompileOptsExtract False dut
+      | editPrivateVerilatorDUTSimCompileOptionsPlusargs appendUserPlusargs
+      | applyPartialEdits dut (subscribe verilatorDUTSimCompileOptionsHooks)
+    def outputDir = userOptions.getUserSimulationOptionsCompileOutputDir
+    toVerilatorSimCompilePlan privateOpts outputDir
+    | doVerilatorCompile
+
+  compileOutputs
 
 def verilatorCompileOptsExtract waves dut =
   def main = source "{here}/../csrc/verilator-main.cpp".simplify
