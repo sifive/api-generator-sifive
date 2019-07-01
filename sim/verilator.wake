@@ -108,18 +108,20 @@ global def doVerilatorCompile options =
       None   = "Unable to find verilator binary: {binaryName}!".makeError.makeBadPath
       Some (Pair b _) = b
 
-  VerilatorCompileOutputs verilatorOutputs makeOutputs options binary
+  VerilatorCompileOutputs verilatorOutputs makeOutputs options binary makeJob
 
 tuple VerilatorCompileOutputs =
   VerilatorOutputs_:    List Path
   MakeOutputs_:         List Path
   InputOptions_:        VerilatorCompilePlan
   Binary_:              Path
+  Job_:                 Job
 
 global def getVerilatorCompileOutputsVerilatorOutputs = getVerilatorCompileOutputsVerilatorOutputs_
 global def getVerilatorCompileOutputsMakeOutputs      = getVerilatorCompileOutputsMakeOutputs_
 global def getVerilatorCompileOutputsInputOptions     = getVerilatorCompileOutputsInputOptions_
 global def getVerilatorCompileOutputsBinary           = getVerilatorCompileOutputsBinary_
+global def getVerilatorCompileOutputsJob              = getVerilatorCompileOutputsJob_
 
 
 

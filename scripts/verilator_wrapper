@@ -1,4 +1,5 @@
 #!/bin/bash -x
 
 VERILATOR_PATH=$(which verilator)
+unset VERILATOR_ROOT
 perl $VERILATOR_PATH "$@"
