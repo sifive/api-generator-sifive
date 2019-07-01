@@ -40,6 +40,14 @@ global def vcu118BitstreamTarget dut buildRoot =
   | setBitstreamPlanTclFiles tclFiles
   | makeBitstream
 
+global def compileProgramTarget dut buildRoot program =
+  def outputDir = buildRoot.getBuildTreeProgramDir program.getTestProgramPlanName
+  program
+  | (testProgramPlanToProgramCompileOptions _ outputDir)
+  | makeDUTProgram freedomMetalDUTProgramCompiler dut
+  | getDUTProgramBinary
+  | getPathResult
+
 global def simTarget dut buildRoot simName waves =
   def dutTests = subscribe dutTests | filter (_.getDUTTestFilter dut)
   map (singleSimTarget simName waves dut buildRoot) dutTests
@@ -164,6 +172,8 @@ global def makeRTL dut = runPlatform rocketChipPlatform dut rtlTarget
 global def compileSim dut = runPlatform rocketChipPlatform dut compileSimTarget
 
 global def runBitstream dut = runPlatform rocketChipPlatform dut vcu118BitstreamTarget
+
+global def compileProgram dut = runPlatform rocketChipPlatform dut compileProgramTarget
 
 global def runPlatform platform dutPlan targ =
   def buildTree = buildTreeSubDir dutPlan.getRocketChipDUTPlanName rootBuildTree
