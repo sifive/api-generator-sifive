@@ -97,7 +97,7 @@ def addChosenNode inDTSContents =
   ++ chosenNode
   ++ secondSplit.getPairSecond
 
-global def fixupDTS dts metalEntryPairOpt = memoize 0 (
+global target fixupDTS dts metalEntryPairOpt =
   def clkFrequency = 32500000
   def prefix =
     extract `(.*)\.dts` dts.getPathName
@@ -115,7 +115,6 @@ global def fixupDTS dts metalEntryPairOpt = memoize 0 (
       | catWith "\n"
       | write "{prefix}_fixed.dts"
     fail = dts
-)
 
 global def generateMetalFromDts dts machineName outputDir =
   def prefix = "{outputDir}/{machineName}"

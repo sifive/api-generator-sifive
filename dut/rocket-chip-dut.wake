@@ -107,7 +107,7 @@ tuple InternalFirrtlOutputs =
   BlackBoxes: List String
   Vsrcs:      List Path
 
-def doFirrtlCompile dutPlan userArgs rocketOutputs = memoize 0 (
+target doFirrtlCompile dutPlan userArgs rocketOutputs =
   def firrtlDir = userArgs.getRuntimeRocketChipDUTArgsFirrtlDir
   def verilogDir = userArgs.getRuntimeRocketChipDUTArgsVerilogDir
   def jars = scalaModuleClasspath dutPlan.getRocketChipDUTPlanProject
@@ -165,7 +165,6 @@ def doFirrtlCompile dutPlan userArgs rocketOutputs = memoize 0 (
   (getFile confFile | getOrElse "no memconf file found!".makeError.makeBadPath)
   blackBoxes
   (filter (matches `^.*\.s?v$` _.getPathName) firrtlOutputs)
-)
 
 global def withRocketChipDUTSimExecuteOptions dut dutSimExecuteOptions =
   dutSimExecuteOptions
