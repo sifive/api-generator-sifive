@@ -21,10 +21,9 @@ global def compileSimTarget dut buildRoot =
   def opts = makeUserSimulationOptions "verilator" False (buildRoot.getBuildTreeSimulationDir "verilator")
   verilatorCompile dut opts
 
-global def vcu118BitstreamTarget dut buildRoot =
+global def bitstreamTarget board dut buildRoot =
   def name = dut.getDUTName
   def vendor = "xilinx"
-  def board = "vcu118"
   def tclFiles = filter (matches `.*\.vivado\.tcl` _.getPathName) dut.getDUTSources
   def vsrcs =
     subscribe vivadoVsrcHooks
@@ -163,7 +162,7 @@ global def makeRTL dut = runPlatform rocketChipPlatform dut rtlTarget
 
 global def compileSim dut = runPlatform rocketChipPlatform dut compileSimTarget
 
-global def runBitstream dut = runPlatform rocketChipPlatform dut vcu118BitstreamTarget
+global def runBitstream board dut = runPlatform rocketChipPlatform dut board.bitstreamTarget
 
 global def runPlatform platform dutPlan targ =
   def buildTree = buildTreeSubDir dutPlan.getRocketChipDUTPlanName rootBuildTree
