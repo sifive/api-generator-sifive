@@ -60,13 +60,14 @@ global def rocketChipDUTMaker dutPlan userArgs =
   def rocketOutputs = doRocketGenerate dutPlan userArgs
   def firrtlOutputs = doFirrtlCompile dutPlan userArgs rocketOutputs
   def vlsiMemGen    = doVLSIMemGen dutPlan userArgs firrtlOutputs
+  def vlsiROMGen    = doVLSIROMGen dutPlan userArgs rocketOutputs
 
   def firrtlFile = rocketOutputs.getRocketChipGeneratorOutputsFirrtlFile
   def annoFile = rocketOutputs.getRocketChipGeneratorOutputsFirrtlAnnoFile
   def objectModelResult = match rocketOutputs.getRocketChipGeneratorOutputsObjectModelFile
     None        = Pass JNull# Fail (makeError "No object model file found!")
     Some omFile = parseJSONFile omFile
-  def vsrcs = vlsiMemGen, firrtlOutputs.getInternalFirrtlOutputsVsrcs
+  def vsrcs = vlsiROMGen, vlsiMemGen, firrtlOutputs.getInternalFirrtlOutputsVsrcs
   def blackboxes = firrtlOutputs.getInternalFirrtlOutputsBlackBoxes
   def allOutputs = rocketOutputs.getRocketChipGeneratorOutputsAllOutputs
   def topModuleOpt = dutPlan.getRocketChipDUTPlanTestharness.getTestharnessTopModule
@@ -90,6 +91,14 @@ def doRocketGenerate dutPlan userArgs =
 
   makeRocketChipGeneratorOptions jars firrtlDir testharness configs
   | runRocketChipGenerator
+
+def doVLSIROMGen dutPlan userArgs rocketOutputs =
+  def outputFile =
+    def verilogDir = userArgs.getRuntimeRocketChipDUTArgsVerilogDir
+    "{verilogDir.getPathName}/{dutPlan.getRocketChipDUTPlanName}.behav_roms.v"
+  def confFile = rocketOutputs.getRocketChipGeneratorOutputsRomConf
+  makeVLSIRomGenOptions confFile "" outputFile
+  | rocket_vlsi_rom_gen
 
 def doVLSIMemGen dutPlan userArgs firrtlOutputs =
   def verilogDir = userArgs.getRuntimeRocketChipDUTArgsVerilogDir
