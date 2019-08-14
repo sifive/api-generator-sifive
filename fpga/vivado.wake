@@ -47,6 +47,6 @@ global def runVivado plan =
     | getOrElse "vivado did not produce a .bit file: {format job.getJobStatus}".makeError.makeBadPath
   VivadoOutput bitstream allOutputs
 
-tuple VivadoOutput =
+global tuple VivadoOutput =
   global Bitstream:  Path
   global AllOutputs: List Path
