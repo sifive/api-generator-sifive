@@ -101,24 +101,35 @@ tuple VCSExecutePlan =
   global VisibleFiles:   List Path
   global CompileOutputs: VCSCompileOutputs
   global ExtraArgs:      List NamedArg
+  global StderrTailNum:  Integer
+  global StdoutTailNum:  Integer
 
 global def makeVCSExecutePlan compileOutputs outputDir =
-  VCSExecutePlan outputDir Nil Nil compileOutputs Nil
+  VCSExecutePlan outputDir Nil Nil compileOutputs Nil 5000 5000
 
 global def doVCSExecute options =
   def compileOutputs = options.getVCSExecutePlanCompileOutputs
   def simv = compileOutputs.getVCSCompileOutputsSimv
   def outputDir = options.getVCSExecutePlanOutputDir
 
+  def wrapperScript = source "{here}/../scripts/redirect_wrapper"
   def inputs =
     def allCompileOutputs = compileOutputs.getVCSCompileOutputsAllOutputs
     def extraSources = options.getVCSExecutePlanVisibleFiles
-    mkdir outputDir, simv, (allCompileOutputs ++ extraSources)
+    wrapperScript, mkdir outputDir, simv, (allCompileOutputs ++ extraSources)
+  def stderrFile = "{outputDir}/sim.err"
+  def stdoutFile = "{outputDir}/sim.out"
 
   def cmdline =
     def plusargs = namedArgsToCmdline outputDir "+" "=" options.getVCSExecutePlanPlusargs
     def extraArgs = namedArgsToListString outputDir options.getVCSExecutePlanExtraArgs
-    relative outputDir simv.getPathName, (extraArgs ++ plusargs)
+    relative outputDir wrapperScript.getPathName,
+    relative outputDir stdoutFile,
+    relative outputDir stderrFile,
+    str options.getVCSExecutePlanStdoutTailNum,
+    str options.getVCSExecutePlanStderrTailNum,
+    "./{relative outputDir simv.getPathName}",
+    (extraArgs ++ plusargs)
 
   def jobResult =
     makePlan cmdline inputs
@@ -131,6 +142,14 @@ tuple VCSExecuteOutputs =
   Plan_: VCSExecutePlan
   Job_:  Job
 
+target readOutput fileName =
+  def regex = regExpCat (`(.*/)?`, fileName.quote, Nil)
+  _
+  | getVCSExecuteOutputsRawOutputs
+  | filter (matches regex _.getPathName)
+  | head
+  | getOrFail "VCS: could not find {fileName}".makeError
+  | rmapPass read
 global def getVCSExecuteOutputsRawOutputs = _.getVCSExecuteOutputsJob_.getJobFailedOutputs
 global def getVCSExecuteOutputsStdout     = _.getVCSExecuteOutputsJob_.getJobStdout
 global def getVCSExecuteOutputsStderr     = _.getVCSExecuteOutputsJob_.getJobStderr

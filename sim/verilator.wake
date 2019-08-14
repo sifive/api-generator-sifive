@@ -131,23 +131,35 @@ tuple VerilatorExecutePlan =
   global VisibleFiles:   List Path
   global CompileOutputs: VerilatorCompileOutputs
   global ExtraArgs:      List NamedArg
+  global StderrTailNum:  Integer
+  global StdoutTailNum:  Integer
 
 global def makeVerilatorExecutePlan compileOutputs outputDir =
-  VerilatorExecutePlan outputDir Nil Nil compileOutputs Nil
+  VerilatorExecutePlan outputDir Nil Nil compileOutputs Nil 5000 5000
 
 global def doVerilatorExecute options =
   def outputDir = options.getVerilatorExecutePlanOutputDir
 
+  def wrapperScript = source "{here}/../scripts/redirect_wrapper"
   def inputs =
     def allCompileOutputs =
       options.getVerilatorExecutePlanCompileOutputs.getVerilatorCompileOutputsMakeOutputs
     def extraSources = options.getVerilatorExecutePlanVisibleFiles
-    mkdir outputDir, allCompileOutputs ++ extraSources
+    wrapperScript, mkdir outputDir, allCompileOutputs ++ extraSources
 
   def plusargs = namedArgsToCmdline outputDir "+" "=" options.getVerilatorExecutePlanPlusargs
   def extraArgs = namedArgsToCmdline "." "" "" options.getVerilatorExecutePlanExtraArgs
   def binary = options.getVerilatorExecutePlanCompileOutputs.getVerilatorCompileOutputsBinary
-  def cmdline = relative outputDir binary.getPathName, (extraArgs ++ plusargs)
+  def stderrFile = "{outputDir}/sim.err"
+  def stdoutFile = "{outputDir}/sim.out"
+  def cmdline =
+    relative outputDir wrapperScript.getPathName,
+    relative outputDir stdoutFile,
+    relative outputDir stderrFile,
+    str options.getVerilatorExecutePlanStdoutTailNum,
+    str options.getVerilatorExecutePlanStderrTailNum,
+    "./{relative outputDir binary.getPathName}",
+    (extraArgs ++ plusargs)
 
   def jobResult =
     makePlan cmdline inputs
@@ -159,6 +171,15 @@ global def doVerilatorExecute options =
 tuple VerilatorExecuteOutputs =
   InputOptions_:       VerilatorExecutePlan
   Job_:                Job
+
+target readOutput fileName =
+  def regex = regExpCat (`(.*/)?`, fileName.quote, Nil)
+  _
+  | getVerilatorExecuteOutputsRawOutputs
+  | filter (matches regex _.getPathName)
+  | head
+  | getOrFail "Verilator: could not find {fileName}".makeError
+  | rmapPass read
 
 global def getVerilatorExecuteOutputsRawOutputs = _.getVerilatorExecuteOutputsJob_.getJobFailedOutputs
 global def getVerilatorExecuteOutputsStdout     = _.getVerilatorExecuteOutputsJob_.getJobStdout
