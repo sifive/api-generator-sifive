@@ -34,8 +34,14 @@ global def bitstreamTarget board dut buildRoot =
 
   def topModule = dut.getDUTTopModule
 
+  def visibleFiles =
+    sourcesInDUT `.*\.sdc` dut
+    ++ sourcesInDUT `.*\.xdc` dut
+    ++ sourcesInDUT `.*\.tcl` dut
+
   makeBitstreamPlan name vendor board topModule buildRoot.getBuildTreeMCSDir
   | setBitstreamPlanVsrcs vsrcs
+  | setBitstreamPlanVisibleFiles visibleFiles
   | setBitstreamPlanTclFiles tclFiles
   | makeBitstream
 

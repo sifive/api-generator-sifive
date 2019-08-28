@@ -8,10 +8,11 @@ tuple BitstreamPlan =
   global Vsrcs:     List Path
   global Resources: List String
   global UseDeputy: Boolean
+  global VisibleFiles: List Path
 
 global def makeBitstreamPlan name vendor board topModule outputDir =
   def resources = "xilinx/vivado/2018.2", Nil
-  BitstreamPlan name vendor board topModule Nil outputDir Nil resources False
+  BitstreamPlan name vendor board topModule Nil outputDir Nil resources False Nil
 
 global target makeBitstream plan =
   def name = plan.getBitstreamPlanName
@@ -21,6 +22,7 @@ global target makeBitstream plan =
   def vendor = plan.getBitstreamPlanVendor
   def board = plan.getBitstreamPlanBoard
   def useDeputy = plan.getBitstreamPlanUseDeputy
+  def visibleFiles = plan.getBitstreamPlanVisibleFiles
 
   def vivadoBitstream =
     def sourceTcl = source "fpga-shells/{vendor}/common/tcl/vivado.tcl"
@@ -46,11 +48,23 @@ global target makeBitstream plan =
 
     def fnOutputs _ = files outputDir `.*\.bit`
 
+    def tclSupportFiles =
+      (sources "fpga-shells/{vendor}/{board}/tcl" `.*\.tcl`)
+      ++ (sources "fpga-shells/{vendor}/common/tcl/" `.*\.tcl`)
+      ++ (sources "fpga-shells/{vendor}/{board}/constraints/" `.*\.xdc`)
+
+    def allVisibleFiles =
+      (outputDir.mkdir, ffile, Nil)
+      ++ visibleFiles
+      ++ tclSupportFiles
+      ++ vsrcs
+      ++ tclFiles
+
     makeVivadoPlan sourceTcl outputDir
     | setVivadoPlanTclArgs tclArgs
     | setVivadoPlanResources resources
     | setVivadoPlanFnOutputs fnOutputs
-    | setVivadoPlanVisibleFiles (outputDir.mkdir, ffile, vsrcs ++ tclFiles)
+    | setVivadoPlanVisibleFiles allVisibleFiles
     | runVivado
 
   BitstreamOutputs
@@ -94,11 +108,15 @@ global def makeMCS plan =
       relative outputDir bitstream.getPathName,
       map (relative outputDir _.getPathName) programImgList
 
+    def tclSupportFiles =
+      (sources "fpga-shells/{vendor}/{board}/tcl" `.*\.tcl`)
+      ++ (sources "fpga-shells/{vendor}/common/tcl" `.*\.tcl`)
+
     makeVivadoPlan sourceTcl outputDir
     | setVivadoPlanTclArgs tclArgs
     | setVivadoPlanFnOutputs (\_ outputFile, Nil)
     | setVivadoPlanResources resources
-    | setVivadoPlanVisibleFiles (outputDir.mkdir, bitstream, programImgList)
+    | setVivadoPlanVisibleFiles (outputDir.mkdir, bitstream, programImgList ++ tclSupportFiles)
     | runVivado
 
   vivadoMCS

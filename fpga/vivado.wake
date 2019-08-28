@@ -34,7 +34,6 @@ global def runVivado plan =
   def inputs = outputDir, homeDir, plan.getVivadoPlanSource, plan.getVivadoPlanVisibleFiles
   def job =
     makePlan cmdline inputs
-    | setPlanLocalOnly True
     | setPlanFnOutputs plan.getVivadoPlanFnOutputs
     | setPlanResources plan.getVivadoPlanResources
     | setPlanDirectory runDir
