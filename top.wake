@@ -177,6 +177,21 @@ global def runPlatform platform dutPlan targ =
     Pass dut = targ dut buildTree
     Fail e   = panic "DUT compilation failed: {format e}"
 
+
+# Given a RocketChipDUTPlan, build the RTL and create an onboarding document
+global def makeOnboardingDocument dutPlan =
+  def dut = makeRTL dutPlan
+  # Get the product name for document
+  def name = dut.getDUTName
+  # Get path to the object model file
+  def om =
+    dut.getDUTObjectModel
+    | prettyJSON
+    | write "build/api-generator-sifive/{name}/documents/design.json"
+
+  buildOnboardingDocument name om "build/api-generator-sifive/{name}/documents"
+
+
 global def rocketChipPlatform buildRoot =
   (rocketChipDUTMaker _ buildRoot.userDUTArgs)
 

@@ -13,5 +13,10 @@
         "commit": "50de8a34c19c12de5066cd7ada50ebb5f5b2ea26",
         "name": "rocket-chip",
         "source": "git@github.com:chipsalliance/rocket-chip.git"
+    },
+    {
+        "commit": "25c894a44126994470065f11a7fd0994efdf0bdf",
+        "name": "scribble-testsocket-sifive",
+        "source": "git@github.com:sifive/scribble-testsocket-sifive.git"
     }
 ]
