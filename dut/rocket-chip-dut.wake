@@ -72,12 +72,26 @@ global def rocketChipDUTMaker dutPlan userArgs =
   def allOutputs = rocketOutputs.getRocketChipGeneratorOutputsAllOutputs
   def topModuleOpt = dutPlan.getRocketChipDUTPlanTestharness.getTestharnessTopModule
   def dts = rocketOutputs.getRocketChipGeneratorOutputsDTS
+  def dtsJSON =
+    def fileName =
+      rocketOutputs
+      | getRocketChipGeneratorOutputsInputOptions
+      | getRocketChipGeneratorOptionsConfigNames
+      | catWith "_"
+      | ("_root_.{_}.json")
+    def fileRegex = regExpCat (`([^/]*/)*`, fileName.quote, Nil)
+
+    rocketOutputs
+    | getRocketChipGeneratorOutputsAllOutputs
+    | find (matches fileRegex _.getPathName)
+    | omap getPairFirst
+    | getOrElse "{fileName} file not found".makeError.makeBadPath
 
   match objectModelResult topModuleOpt
     (Pass objectModel) (Some topModule) =
       def name = dutPlan.getRocketChipDUTPlanName
       def configs = dutPlan.getRocketChipDUTPlanConfigs
-      makeDUT name configs objectModel vsrcs topModule blackboxes dts None
+      makeDUT name configs objectModel vsrcs topModule blackboxes dts dtsJSON None
       | setDUTSources allOutputs
       | Pass
     (Fail e) _ = Fail e

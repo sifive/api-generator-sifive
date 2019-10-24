@@ -1,0 +1,85 @@
+
+# Borrowed from future wake
+def root /../ filterFn = jfind filterFn root
+def jfind filterFn root =
+  def helper node acc = match node
+    JArray l =
+      def tail = foldr helper acc l
+      if filterFn node then node, tail else tail
+    JObject l =
+      def tail = foldr (helper _.getPairSecond _) acc l
+      if filterFn node then node, tail else tail
+    _ =
+      if filterFn node then node, acc else acc
+  helper root Nil | JArray
+
+# Information needed to compile and link a driver into a program
+# for a give compatibility string.
+tuple DriverImplementation =
+  global CompatibilityStrings: List String # This should match the DTS compatible property
+  global Vendor:       String
+  global DeviceName:   String
+  global CFiles:       List Path
+  global IncludeDirs:  List String
+  global Visible:      List Path           # any extra files that must be visible
+
+global def makeDriverImplementation compatibleDevices vendor deviceName driverSources includeDirs visible =
+  DriverImplementation compatibleDevices vendor deviceName driverSources includeDirs visible
+
+target driverImpCompatibilityTrees Unit =
+  subscribe driverImplementations
+  | map (\p p → listToTree scmp p.getDriverImplementationCompatibilityStrings)
+
+target getCompatibleDriverImplementation compatibleString =
+  def drivers = filter (compatibleString ∈ _.getPairSecond) Unit.driverImpCompatibilityTrees
+  match drivers
+    one, Nil = Some one.getPairFirst
+    Nil = None
+    _ =
+      def _ = printlnLevel logWarn "WARNING: More than one driver implementation available for device {compatibleString}. A random one will be chosen."
+      None
+
+# get a list of compatible strings for each device in a given Path of a DTS JSON file
+global target getCompatibleLists dtsJSON =
+  def isDevice = match _
+    JObject fields = exists (matches `compatible` _.getPairFirst) fields
+    _ = False
+  def getLists =
+    _
+    | getJArray
+    | getOrElse Nil
+    | mapPartial (getJArray)
+  match dtsJSON.parseJSONFile
+    Pass dtsJValue =
+      dtsJValue
+      | (_ /../ isDevice)
+      | getJArray
+      | getOrElse Nil
+      | map (_ // `compatible`)
+      | mapPartial getJArray
+      | map getJString.mapPartial
+    Fail e =
+      def _ = printlnLevel logWarn "WARNING: Could not parse DTS JSON: {e.getErrorCause}"
+      Nil
+
+# Return DriverImplementations available for a given DUT
+global def getDriverImplementationsForDUT dut =
+  def dts = dut.getDUTDTS
+  def omFile = dut.getDUTObjectModelFile
+  def compatibleLists = getCompatibleLists dut.getDUTDTSJSON
+  def getImpForCompatibleList compatibleList =
+    compatibleList
+    | mapPartial getCompatibleDriverImplementation
+    | head
+  mapPartial getImpForCompatibleList compatibleLists
+
+# Get base header for given DUT in directory outputDir
+global def getBaseHeaderForDUT dut outputDir =
+  def omFile = dut.getDUTObjectModelFile
+  def imps = dut.getDriverImplementationsForDUT
+  def generateBaseHeaderForDriver driver =
+    def deviceName = driver.getDriverImplementationDeviceName
+    def vendor = driver.getDriverImplementationVendor
+    makeBaseHeaderPlan vendor deviceName omFile "{outputDir}/{deviceName}"
+    | generateBaseHeader
+  map generateBaseHeaderForDriver imps

@@ -1,0 +1,47 @@
+# This file creates a design specific c header file.
+# It inclues base addresses for memory regions, register offsets
+# and register widths.
+
+tuple BaseHeaderPlan =
+  global Vendor:            String
+  global Device:            String
+  global OMFile:            Path
+  global OutputDir:         String
+  global OverwriteExisting: Boolean
+
+tuple DriverOutput =
+  global CFiles:      List Path
+  global IncludeDirs: List String
+  global Sources:     List Path
+
+global def makeBaseHeaderPlan vendorName deviceName omFile outputDir =
+  BaseHeaderPlan vendorName deviceName omFile outputDir True
+
+global def generateBaseHeader plan =
+  def omfile = plan.getBaseHeaderPlanOMFile
+  def outputDir = plan.getBaseHeaderPlanOutputDir
+  def extraFlags =
+    def overwrite =
+      if plan.getBaseHeaderPlanOverwriteExisting
+      then "--overwrite-existing", Nil
+      else Nil
+    overwrite
+  def script = "{here}/../scripts/generate_header.py".simplify
+  def cmd = pythonCommand script (
+    "--object-model", omfile.getPathName,
+    "--vendor", plan.getBaseHeaderPlanVendor,
+    "--device", plan.getBaseHeaderPlanDevice,
+    "--bsp-dir", outputDir,
+    extraFlags
+  )
+  def visibleFiles =
+    script.source,
+    omfile,
+    outputDir.mkdir,
+    Nil
+  def outputs =
+    makePlan cmd visibleFiles
+    | addPythonEnv ("{here}/../scripts/generate_drivers_env".simplify)
+    | runJob
+    | getJobOutputs
+  DriverOutput (filter (matches `.*\.c` _.getPathName) outputs) (outputDir, Nil) outputs
