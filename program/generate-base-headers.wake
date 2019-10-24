@@ -17,6 +17,8 @@ tuple DriverOutput =
 global def makeBaseHeaderPlan vendorName deviceName omFile outputDir =
   BaseHeaderPlan vendorName deviceName omFile outputDir True
 
+def pipenvDir = "{here}/../scripts/generate_drivers_env".simplify
+
 global def generateBaseHeader plan =
   def omfile = plan.getBaseHeaderPlanOMFile
   def outputDir = plan.getBaseHeaderPlanOutputDir
@@ -41,7 +43,9 @@ global def generateBaseHeader plan =
     Nil
   def outputs =
     makePlan cmd visibleFiles
-    | addPythonEnv ("{here}/../scripts/generate_drivers_env".simplify)
+    | addPythonEnv pipenvDir
     | runJob
     | getJobOutputs
   DriverOutput (filter (matches `.*\.c` _.getPathName) outputs) (outputDir, Nil) outputs
+
+publish preinstall = pythonInstaller pipenvDir, Nil
