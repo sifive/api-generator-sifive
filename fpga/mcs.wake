@@ -7,12 +7,11 @@ tuple BitstreamPlan =
   global OutputDir: String
   global Vsrcs:     List Path
   global Resources: List String
-  global UseDeputy: Boolean
   global VisibleFiles: List Path
 
 global def makeBitstreamPlan name vendor board topModule outputDir =
   def resources = "xilinx/vivado/2018.2", Nil
-  BitstreamPlan name vendor board topModule Nil outputDir Nil resources False Nil
+  BitstreamPlan name vendor board topModule Nil outputDir Nil resources Nil
 
 global target makeBitstream plan =
   def name = plan.getBitstreamPlanName
@@ -21,7 +20,6 @@ global target makeBitstream plan =
   def designTopModule = plan.getBitstreamPlanTopModule
   def vendor = plan.getBitstreamPlanVendor
   def board = plan.getBitstreamPlanBoard
-  def useDeputy = plan.getBitstreamPlanUseDeputy
   def visibleFiles = plan.getBitstreamPlanVisibleFiles
 
   def vivadoBitstream =
@@ -93,7 +91,6 @@ global def makeMCS plan =
   def outputDir = bitstreamPlan.getBitstreamPlanOutputDir
   def vendor    = bitstreamPlan.getBitstreamPlanVendor
   def board     = bitstreamPlan.getBitstreamPlanBoard
-  def useDeputy = bitstreamPlan.getBitstreamPlanUseDeputy
   def programImgList =
     plan.getMCSPlanProgramImage
     | omap (_, Nil)
