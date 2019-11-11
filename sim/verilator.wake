@@ -133,9 +133,10 @@ tuple VerilatorExecutePlan =
   global ExtraArgs:      List NamedArg
   global StderrTailNum:  Integer
   global StdoutTailNum:  Integer
+  global Resources:      List String
 
 global def makeVerilatorExecutePlan compileOutputs outputDir =
-  VerilatorExecutePlan outputDir Nil Nil compileOutputs Nil 5000 5000
+  VerilatorExecutePlan outputDir Nil Nil compileOutputs Nil 5000 5000 Nil
 
 global def doVerilatorExecute options =
   def outputDir = options.getVerilatorExecutePlanOutputDir
@@ -164,6 +165,7 @@ global def doVerilatorExecute options =
   def jobResult =
     makePlan cmdline inputs
     | setPlanDirectory outputDir
+    | setPlanResources options.getVerilatorExecutePlanResources
     | runJob
 
   VerilatorExecuteOutputs options jobResult

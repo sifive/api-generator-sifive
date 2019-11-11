@@ -13,55 +13,24 @@ tuple VCSDUTSimCompileOptions =
   global GenericOpts: DUTSimCompileOptions
   global ExtraArgs:   List NamedArg
 
-global def getVCSDUTSimCompileOptionsIncludeDirs = _.getVCSDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsIncludeDirs
-global def getVCSDUTSimCompileOptionsDefines     = _.getVCSDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsDefines
-global def getVCSDUTSimCompileOptionsSourceFiles = _.getVCSDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsSourceFiles
-global def getVCSDUTSimCompileOptionsPlusargs    = _.getVCSDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsPlusargs
-
-global def setVCSDUTSimCompileOptionsIncludeDirs v = editVCSDUTSimCompileOptionsIncludeDirs (\_ v)
-global def setVCSDUTSimCompileOptionsDefines     v = editVCSDUTSimCompileOptionsDefines     (\_ v)
-global def setVCSDUTSimCompileOptionsSourceFiles v = editVCSDUTSimCompileOptionsSourceFiles (\_ v)
-global def setVCSDUTSimCompileOptionsPlusargs    v = editVCSDUTSimCompileOptionsPlusargs    (\_ v)
-
-global def editVCSDUTSimCompileOptionsIncludeDirs f = editVCSDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsIncludeDirs f)
-global def editVCSDUTSimCompileOptionsDefines     f = editVCSDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsDefines f)
-global def editVCSDUTSimCompileOptionsSourceFiles f = editVCSDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsSourceFiles f)
-global def editVCSDUTSimCompileOptionsPlusargs    f = editVCSDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsPlusargs f)
-
-
 tuple PrivateVCSDUTSimCompileOptions =
-  global DUTOpts:      VCSDUTSimCompileOptions
-  global VCSResources: List String
-
-global def getPrivateVCSDUTSimCompileOptionsIncludeDirs = _.getPrivateVCSDUTSimCompileOptionsDUTOpts.getVCSDUTSimCompileOptionsIncludeDirs
-global def getPrivateVCSDUTSimCompileOptionsDefines     = _.getPrivateVCSDUTSimCompileOptionsDUTOpts.getVCSDUTSimCompileOptionsDefines
-global def getPrivateVCSDUTSimCompileOptionsSourceFiles = _.getPrivateVCSDUTSimCompileOptionsDUTOpts.getVCSDUTSimCompileOptionsSourceFiles
-global def getPrivateVCSDUTSimCompileOptionsPlusargs    = _.getPrivateVCSDUTSimCompileOptionsDUTOpts.getVCSDUTSimCompileOptionsPlusargs
-global def getPrivateVCSDUTSimCompileOptionsExtraArgs   = _.getPrivateVCSDUTSimCompileOptionsDUTOpts.getVCSDUTSimCompileOptionsExtraArgs
-
-global def setPrivateVCSDUTSimCompileOptionsIncludeDirs v = editPrivateVCSDUTSimCompileOptionsIncludeDirs (\_ v)
-global def setPrivateVCSDUTSimCompileOptionsDefines     v = editPrivateVCSDUTSimCompileOptionsDefines     (\_ v)
-global def setPrivateVCSDUTSimCompileOptionsSourceFiles v = editPrivateVCSDUTSimCompileOptionsSourceFiles (\_ v)
-global def setPrivateVCSDUTSimCompileOptionsPlusargs    v = editPrivateVCSDUTSimCompileOptionsPlusargs    (\_ v)
-global def setPrivateVCSDUTSimCompileOptionsExtraArgs   v = editPrivateVCSDUTSimCompileOptionsExtraArgs   (\_ v)
-
-global def editPrivateVCSDUTSimCompileOptionsIncludeDirs f = editPrivateVCSDUTSimCompileOptionsDUTOpts (editVCSDUTSimCompileOptionsIncludeDirs f)
-global def editPrivateVCSDUTSimCompileOptionsDefines     f = editPrivateVCSDUTSimCompileOptionsDUTOpts (editVCSDUTSimCompileOptionsDefines f)
-global def editPrivateVCSDUTSimCompileOptionsSourceFiles f = editPrivateVCSDUTSimCompileOptionsDUTOpts (editVCSDUTSimCompileOptionsSourceFiles f)
-global def editPrivateVCSDUTSimCompileOptionsPlusargs    f = editPrivateVCSDUTSimCompileOptionsDUTOpts (editVCSDUTSimCompileOptionsPlusargs f)
-global def editPrivateVCSDUTSimCompileOptionsExtraArgs   f = editPrivateVCSDUTSimCompileOptionsDUTOpts (editVCSDUTSimCompileOptionsExtraArgs f)
+  global DUTOpts:   DUTSimCompileOptions
+  global ExtraArgs: List NamedArg
 
 global def makePrivateVCSDUTSimCompileOptions =
-  PrivateVCSDUTSimCompileOptions (VCSDUTSimCompileOptions emptyDUTSimCompileOptions Nil) defaultVCSResources
+  def dutOpts =
+    emptyDUTSimCompileOptions
+    | setDUTSimCompileOptionsResources defaultVCSResources
+  PrivateVCSDUTSimCompileOptions dutOpts Nil
 
 def toVCSSimCompilePlan privateOpts outputDir =
   def dutOpts      = privateOpts.getPrivateVCSDUTSimCompileOptionsDUTOpts
 
-  def resources    = privateOpts.getPrivateVCSDUTSimCompileOptionsVCSResources
-  def includeDirs  = privateOpts.getPrivateVCSDUTSimCompileOptionsIncludeDirs
-  def defines      = privateOpts.getPrivateVCSDUTSimCompileOptionsDefines
-  def sourceFiles  = privateOpts.getPrivateVCSDUTSimCompileOptionsSourceFiles
-  def plusargs     = privateOpts.getPrivateVCSDUTSimCompileOptionsPlusargs
+  def resources    = dutOpts.getDUTSimCompileOptionsResources
+  def includeDirs  = dutOpts.getDUTSimCompileOptionsIncludeDirs
+  def defines      = dutOpts.getDUTSimCompileOptionsDefines
+  def sourceFiles  = dutOpts.getDUTSimCompileOptionsSourceFiles
+  def plusargs     = dutOpts.getDUTSimCompileOptionsPlusargs
   def extraArgs    = privateOpts.getPrivateVCSDUTSimCompileOptionsExtraArgs
 
   makeVCSCompilePlan sourceFiles outputDir
@@ -75,44 +44,26 @@ tuple VCSDUTSimExecuteOptions =
   global GenericOpts: DUTSimExecuteOptions
   global ExtraArgs:   List NamedArg
 
-global def getVCSDUTSimExecuteOptionsPlusargs     = _.getVCSDUTSimExecuteOptionsGenericOpts.getDUTSimExecuteOptionsPlusargs
-global def getVCSDUTSimExecuteOptionsVisibleFiles = _.getVCSDUTSimExecuteOptionsGenericOpts.getDUTSimExecuteOptionsVisibleFiles
-
-global def setVCSDUTSimExecuteOptionsPlusargs     v = editVCSDUTSimExecuteOptionsPlusargs     (\_ v)
-global def setVCSDUTSimExecuteOptionsVisibleFiles v = editVCSDUTSimExecuteOptionsVisibleFiles (\_ v)
-
-global def editVCSDUTSimExecuteOptionsPlusargs     f = editVCSDUTSimExecuteOptionsGenericOpts (editDUTSimExecuteOptionsPlusargs f)
-global def editVCSDUTSimExecuteOptionsVisibleFiles f = editVCSDUTSimExecuteOptionsGenericOpts (editDUTSimExecuteOptionsVisibleFiles f)
-
-
 tuple PrivateVCSDUTSimExecuteOptions =
-  global DUTOpts: VCSDUTSimExecuteOptions
+  global DUTOpts:   DUTSimExecuteOptions
+  global ExtraArgs: List NamedArg
 
 global def makePrivateVCSDUTSimExecuteOptions =
-   PrivateVCSDUTSimExecuteOptions (VCSDUTSimExecuteOptions emptyDUTSimExecuteOptions Nil)
-
-global def getPrivateVCSDUTSimExecuteOptionsPlusargs     = _.getPrivateVCSDUTSimExecuteOptionsDUTOpts.getVCSDUTSimExecuteOptionsPlusargs
-global def getPrivateVCSDUTSimExecuteOptionsVisibleFiles = _.getPrivateVCSDUTSimExecuteOptionsDUTOpts.getVCSDUTSimExecuteOptionsVisibleFiles
-global def getPrivateVCSDUTSimExecuteOptionsExtraArgs    = _.getPrivateVCSDUTSimExecuteOptionsDUTOpts.getVCSDUTSimExecuteOptionsExtraArgs
-
-global def setPrivateVCSDUTSimExecuteOptionsPlusargs     v = editPrivateVCSDUTSimExecuteOptionsPlusargs     (\_ v)
-global def setPrivateVCSDUTSimExecuteOptionsVisibleFiles v = editPrivateVCSDUTSimExecuteOptionsVisibleFiles (\_ v)
-global def setPrivateVCSDUTSimExecuteOptionsExtraArgs    v = editPrivateVCSDUTSimExecuteOptionsExtraArgs    (\_ v)
-
-global def editPrivateVCSDUTSimExecuteOptionsPlusargs     f = editPrivateVCSDUTSimExecuteOptionsDUTOpts (editVCSDUTSimExecuteOptionsPlusargs f)
-global def editPrivateVCSDUTSimExecuteOptionsVisibleFiles f = editPrivateVCSDUTSimExecuteOptionsDUTOpts (editVCSDUTSimExecuteOptionsVisibleFiles f)
-global def editPrivateVCSDUTSimExecuteOptionsExtraArgs    f = editPrivateVCSDUTSimExecuteOptionsDUTOpts (editVCSDUTSimExecuteOptionsExtraArgs f)
-
+   PrivateVCSDUTSimExecuteOptions emptyDUTSimExecuteOptions Nil
 
 def toVCSSimExecutePlan opts compileOutputs outputDir =
-  def plusargs     = opts.getPrivateVCSDUTSimExecuteOptionsPlusargs
-  def visibleFiles = opts.getPrivateVCSDUTSimExecuteOptionsVisibleFiles
+  def genericOpts = opts.getPrivateVCSDUTSimExecuteOptionsDUTOpts
+
+  def plusargs     = genericOpts.getDUTSimExecuteOptionsPlusargs
+  def visibleFiles = genericOpts.getDUTSimExecuteOptionsVisibleFiles
+  def resources    = genericOpts.getDUTSimExecuteOptionsResources
   def extraArgs    = opts.getPrivateVCSDUTSimExecuteOptionsExtraArgs
 
   makeVCSExecutePlan compileOutputs outputDir
   | setVCSExecutePlanPlusargs     plusargs
   | setVCSExecutePlanVisibleFiles visibleFiles
   | setVCSExecutePlanExtraArgs    extraArgs
+  | setVCSExecutePlanResources    resources
 
 
 # takes a VCSDUTSimulatorPlan and makes a DUTSimulator
@@ -127,24 +78,24 @@ global def makeVCSDUTSimulator plan =
     def filter sim = dutSimulatorNameEquals simName sim && dutSimulatorVendorEquals simVendor sim
 
     def compileOutputs =
-      def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsCompilePlusargs
-      def appendDUTOptions = editVCSDUTSimCompileOptionsGenericOpts (appendDUTSimCompileOptions rawCompileOptions)
+      def appendUserPlusargs = editDUTSimCompileOptionsPlusargs (_ ++ userOptions.getUserSimulationOptionsCompilePlusargs)
+      def appendDUTOptions = appendDUTSimCompileOptions rawCompileOptions
       def privateOpts =
         plan.getVCSDUTSimulatorPlanCompileOptions dut
         | editPrivateVCSDUTSimCompileOptionsDUTOpts appendDUTOptions
-        | editPrivateVCSDUTSimCompileOptionsPlusargs appendUserPlusargs
+        | editPrivateVCSDUTSimCompileOptionsDUTOpts appendUserPlusargs
         | applyPartialEdits dut (subscribe vcsDUTSimCompileOptionsHooks)
       def outputDir = userOptions.getUserSimulationOptionsCompileOutputDir
       toVCSSimCompilePlan privateOpts outputDir
       | doVCSCompile
 
     def executeOutputs =
-      def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsExecutePlusargs
-      def appendDUTOptions = editVCSDUTSimExecuteOptionsGenericOpts (appendDUTSimExecuteOptions rawExecuteOptions)
+      def appendUserPlusargs = editDUTSimExecuteOptionsPlusargs (_ ++ userOptions.getUserSimulationOptionsExecutePlusargs)
+      def appendDUTOptions = appendDUTSimExecuteOptions rawExecuteOptions
       def privateOpts =
         plan.getVCSDUTSimulatorPlanExecuteOptions dut
         | editPrivateVCSDUTSimExecuteOptionsDUTOpts appendDUTOptions
-        | editPrivateVCSDUTSimExecuteOptionsPlusargs appendUserPlusargs
+        | editPrivateVCSDUTSimExecuteOptionsDUTOpts appendUserPlusargs
         | applyPartialEdits dut (subscribe vcsDUTSimExecuteOptionsHooks)
       def outputDir = userOptions.getUserSimulationOptionsExecuteOutputDir
       toVCSSimExecutePlan privateOpts compileOutputs outputDir
@@ -186,15 +137,16 @@ def vcsCompileOptsExtract waves dut =
         _
       opts
       | editPrivateVCSDUTSimCompileOptionsExtraArgs withExtraArgs
-      | editPrivateVCSDUTSimCompileOptionsDefines withDefines
+      | editPrivateVCSDUTSimCompileOptionsDUTOpts (editDUTSimCompileOptionsDefines withDefines)
     else opts
 
-  def genericOpts = freedomTestDriverSimCompileOpts dut
+  def genericOpts =
+    freedomTestDriverSimCompileOpts dut
+    | editDUTSimCompileOptionsDefines (NamedArg "VCS", _)
 
   makePrivateVCSDUTSimCompileOptions
-  | editPrivateVCSDUTSimCompileOptionsDUTOpts (setVCSDUTSimCompileOptionsGenericOpts genericOpts)
+  | setPrivateVCSDUTSimCompileOptionsDUTOpts genericOpts
   | setPrivateVCSDUTSimCompileOptionsExtraArgs extraArgs
-  | editPrivateVCSDUTSimCompileOptionsDefines (NamedArg "VCS", _)
   | withWavesOptions
 
 def vcsExecuteOptsExtract waves dut =
@@ -210,13 +162,14 @@ def vcsExecuteOptsExtract waves dut =
 
   def withWavesOptions opts =
     if waves
-    then opts | editPrivateVCSDUTSimExecuteOptionsPlusargs (NamedArgString "vcdplusfile" "sim.vpd", _)
+    then
+      editPrivateVCSDUTSimExecuteOptionsDUTOpts (editDUTSimExecuteOptionsPlusargs (NamedArgString "vcdplusfile" "sim.vpd", _)) opts
     else opts
 
   def genericOpts = freedomTestDriverSimExecuteOpts dut
 
   makePrivateVCSDUTSimExecuteOptions
-  | editPrivateVCSDUTSimExecuteOptionsDUTOpts (setVCSDUTSimExecuteOptionsGenericOpts genericOpts)
+  | setPrivateVCSDUTSimExecuteOptionsDUTOpts genericOpts
   | editPrivateVCSDUTSimExecuteOptionsExtraArgs withExtraArgs
   | withWavesOptions
 

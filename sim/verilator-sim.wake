@@ -14,74 +14,41 @@ tuple VerilatorDUTSimCompileOptions =
   global GenericOpts: DUTSimCompileOptions
   global MakeArgs:    List NamedArg
   global ExtraArgs:   List NamedArg
-  global Resources:   List String
-
-global def getVerilatorDUTSimCompileOptionsIncludeDirs = _.getVerilatorDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsIncludeDirs
-global def getVerilatorDUTSimCompileOptionsDefines     = _.getVerilatorDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsDefines
-global def getVerilatorDUTSimCompileOptionsSourceFiles = _.getVerilatorDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsSourceFiles
-global def getVerilatorDUTSimCompileOptionsPlusargs    = _.getVerilatorDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsPlusargs
-
-global def setVerilatorDUTSimCompileOptionsIncludeDirs v = editVerilatorDUTSimCompileOptionsIncludeDirs (\_ v)
-global def setVerilatorDUTSimCompileOptionsDefines     v = editVerilatorDUTSimCompileOptionsDefines     (\_ v)
-global def setVerilatorDUTSimCompileOptionsSourceFiles v = editVerilatorDUTSimCompileOptionsSourceFiles (\_ v)
-global def setVerilatorDUTSimCompileOptionsPlusargs    v = editVerilatorDUTSimCompileOptionsPlusargs    (\_ v)
-
-global def editVerilatorDUTSimCompileOptionsIncludeDirs f = editVerilatorDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsIncludeDirs f)
-global def editVerilatorDUTSimCompileOptionsDefines     f = editVerilatorDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsDefines f)
-global def editVerilatorDUTSimCompileOptionsSourceFiles f = editVerilatorDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsSourceFiles f)
-global def editVerilatorDUTSimCompileOptionsPlusargs    f = editVerilatorDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsPlusargs f)
-
 
 tuple PrivateVerilatorDUTSimCompileOptions =
   global Main:      Path
   global Prefix:    String
   global TopModule: String
-  global DUTOpts:   VerilatorDUTSimCompileOptions
-
-global def getPrivateVerilatorDUTSimCompileOptionsIncludeDirs = _.getPrivateVerilatorDUTSimCompileOptionsDUTOpts.getVerilatorDUTSimCompileOptionsIncludeDirs
-global def getPrivateVerilatorDUTSimCompileOptionsDefines     = _.getPrivateVerilatorDUTSimCompileOptionsDUTOpts.getVerilatorDUTSimCompileOptionsDefines
-global def getPrivateVerilatorDUTSimCompileOptionsSourceFiles = _.getPrivateVerilatorDUTSimCompileOptionsDUTOpts.getVerilatorDUTSimCompileOptionsSourceFiles
-global def getPrivateVerilatorDUTSimCompileOptionsPlusargs    = _.getPrivateVerilatorDUTSimCompileOptionsDUTOpts.getVerilatorDUTSimCompileOptionsPlusargs
-global def getPrivateVerilatorDUTSimCompileOptionsMakeArgs    = _.getPrivateVerilatorDUTSimCompileOptionsDUTOpts.getVerilatorDUTSimCompileOptionsMakeArgs
-global def getPrivateVerilatorDUTSimCompileOptionsExtraArgs   = _.getPrivateVerilatorDUTSimCompileOptionsDUTOpts.getVerilatorDUTSimCompileOptionsExtraArgs
-global def getPrivateVerilatorDUTSimCompileOptionsResources   = _.getPrivateVerilatorDUTSimCompileOptionsDUTOpts.getVerilatorDUTSimCompileOptionsResources
-
-global def setPrivateVerilatorDUTSimCompileOptionsIncludeDirs v = editPrivateVerilatorDUTSimCompileOptionsIncludeDirs (\_ v)
-global def setPrivateVerilatorDUTSimCompileOptionsDefines     v = editPrivateVerilatorDUTSimCompileOptionsDefines     (\_ v)
-global def setPrivateVerilatorDUTSimCompileOptionsSourceFiles v = editPrivateVerilatorDUTSimCompileOptionsSourceFiles (\_ v)
-global def setPrivateVerilatorDUTSimCompileOptionsPlusargs    v = editPrivateVerilatorDUTSimCompileOptionsPlusargs    (\_ v)
-global def setPrivateVerilatorDUTSimCompileOptionsMakeArgs    v = editPrivateVerilatorDUTSimCompileOptionsMakeArgs    (\_ v)
-global def setPrivateVerilatorDUTSimCompileOptionsExtraArgs   v = editPrivateVerilatorDUTSimCompileOptionsExtraArgs   (\_ v)
-global def setPrivateVerilatorDUTSimCompileOptionsResources   v = editPrivateVerilatorDUTSimCompileOptionsResources   (\_ v)
-
-global def editPrivateVerilatorDUTSimCompileOptionsIncludeDirs f = editPrivateVerilatorDUTSimCompileOptionsDUTOpts (editVerilatorDUTSimCompileOptionsIncludeDirs f)
-global def editPrivateVerilatorDUTSimCompileOptionsDefines     f = editPrivateVerilatorDUTSimCompileOptionsDUTOpts (editVerilatorDUTSimCompileOptionsDefines f)
-global def editPrivateVerilatorDUTSimCompileOptionsSourceFiles f = editPrivateVerilatorDUTSimCompileOptionsDUTOpts (editVerilatorDUTSimCompileOptionsSourceFiles f)
-global def editPrivateVerilatorDUTSimCompileOptionsPlusargs    f = editPrivateVerilatorDUTSimCompileOptionsDUTOpts (editVerilatorDUTSimCompileOptionsPlusargs f)
-global def editPrivateVerilatorDUTSimCompileOptionsMakeArgs    f = editPrivateVerilatorDUTSimCompileOptionsDUTOpts (editVerilatorDUTSimCompileOptionsMakeArgs f)
-global def editPrivateVerilatorDUTSimCompileOptionsExtraArgs   f = editPrivateVerilatorDUTSimCompileOptionsDUTOpts (editVerilatorDUTSimCompileOptionsExtraArgs f)
-global def editPrivateVerilatorDUTSimCompileOptionsResources   f = editPrivateVerilatorDUTSimCompileOptionsDUTOpts (editVerilatorDUTSimCompileOptionsResources f)
+  global DUTOpts:   DUTSimCompileOptions
+  global MakeArgs:  List NamedArg
+  global ExtraArgs: List NamedArg
 
 global def makePrivateVerilatorDUTSimCompileOptions main prefix topModule =
+  def dutOpts =
+    emptyDUTSimCompileOptions
+    | setDUTSimCompileOptionsResources defaultVerilatorResources
   PrivateVerilatorDUTSimCompileOptions
   main
   prefix
   topModule
-  (VerilatorDUTSimCompileOptions emptyDUTSimCompileOptions Nil Nil defaultVerilatorResources)
+  dutOpts
+  Nil
+  Nil
 
 def toVerilatorSimCompilePlan privateOpts outputDir =
   def dutOpts      = privateOpts.getPrivateVerilatorDUTSimCompileOptionsDUTOpts
 
-  def includeDirs  = privateOpts.getPrivateVerilatorDUTSimCompileOptionsIncludeDirs
-  def defines      = privateOpts.getPrivateVerilatorDUTSimCompileOptionsDefines
-  def sourceFiles  = privateOpts.getPrivateVerilatorDUTSimCompileOptionsSourceFiles
-  def plusargs     = privateOpts.getPrivateVerilatorDUTSimCompileOptionsPlusargs
+  def includeDirs  = dutOpts.getDUTSimCompileOptionsIncludeDirs
+  def defines      = dutOpts.getDUTSimCompileOptionsDefines
+  def sourceFiles  = dutOpts.getDUTSimCompileOptionsSourceFiles
+  def plusargs     = dutOpts.getDUTSimCompileOptionsPlusargs
+  def resources    = dutOpts.getDUTSimCompileOptionsResources
+
   def makeArgs     = privateOpts.getPrivateVerilatorDUTSimCompileOptionsMakeArgs
   def extraArgs    = privateOpts.getPrivateVerilatorDUTSimCompileOptionsExtraArgs
   def main         = privateOpts.getPrivateVerilatorDUTSimCompileOptionsMain
   def prefix       = privateOpts.getPrivateVerilatorDUTSimCompileOptionsPrefix
   def topModule    = privateOpts.getPrivateVerilatorDUTSimCompileOptionsTopModule
-  def resources    = privateOpts.getPrivateVerilatorDUTSimCompileOptionsResources
 
   makeVerilatorCompilePlan sourceFiles main topModule outputDir
   | setVerilatorCompilePlanExtraArgs   extraArgs
@@ -98,44 +65,27 @@ tuple VerilatorDUTSimExecuteOptions =
   global GenericOpts: DUTSimExecuteOptions
   global ExtraArgs:   List NamedArg
 
-global def getVerilatorDUTSimExecuteOptionsPlusargs     = _.getVerilatorDUTSimExecuteOptionsGenericOpts.getDUTSimExecuteOptionsPlusargs
-global def getVerilatorDUTSimExecuteOptionsVisibleFiles = _.getVerilatorDUTSimExecuteOptionsGenericOpts.getDUTSimExecuteOptionsVisibleFiles
-
-global def setVerilatorDUTSimExecuteOptionsPlusargs     v = editVerilatorDUTSimExecuteOptionsPlusargs     (\_ v)
-global def setVerilatorDUTSimExecuteOptionsVisibleFiles v = editVerilatorDUTSimExecuteOptionsVisibleFiles (\_ v)
-
-global def editVerilatorDUTSimExecuteOptionsPlusargs     f = editVerilatorDUTSimExecuteOptionsGenericOpts (editDUTSimExecuteOptionsPlusargs f)
-global def editVerilatorDUTSimExecuteOptionsVisibleFiles f = editVerilatorDUTSimExecuteOptionsGenericOpts (editDUTSimExecuteOptionsVisibleFiles f)
-
-
 tuple PrivateVerilatorDUTSimExecuteOptions =
-  global DUTOpts: VerilatorDUTSimExecuteOptions
+  global DUTOpts:   DUTSimExecuteOptions
+  global ExtraArgs: List NamedArg
 
 global def makePrivateVerilatorDUTSimExecuteOptions =
-   PrivateVerilatorDUTSimExecuteOptions (VerilatorDUTSimExecuteOptions emptyDUTSimExecuteOptions Nil)
-
-global def getPrivateVerilatorDUTSimExecuteOptionsPlusargs     = _.getPrivateVerilatorDUTSimExecuteOptionsDUTOpts.getVerilatorDUTSimExecuteOptionsPlusargs
-global def getPrivateVerilatorDUTSimExecuteOptionsVisibleFiles = _.getPrivateVerilatorDUTSimExecuteOptionsDUTOpts.getVerilatorDUTSimExecuteOptionsVisibleFiles
-global def getPrivateVerilatorDUTSimExecuteOptionsExtraArgs    = _.getPrivateVerilatorDUTSimExecuteOptionsDUTOpts.getVerilatorDUTSimExecuteOptionsExtraArgs
-
-global def setPrivateVerilatorDUTSimExecuteOptionsPlusargs     v = editPrivateVerilatorDUTSimExecuteOptionsPlusargs     (\_ v)
-global def setPrivateVerilatorDUTSimExecuteOptionsVisibleFiles v = editPrivateVerilatorDUTSimExecuteOptionsVisibleFiles (\_ v)
-global def setPrivateVerilatorDUTSimExecuteOptionsExtraArgs    v = editPrivateVerilatorDUTSimExecuteOptionsExtraArgs    (\_ v)
-
-global def editPrivateVerilatorDUTSimExecuteOptionsPlusargs     f = editPrivateVerilatorDUTSimExecuteOptionsDUTOpts (editVerilatorDUTSimExecuteOptionsPlusargs f)
-global def editPrivateVerilatorDUTSimExecuteOptionsVisibleFiles f = editPrivateVerilatorDUTSimExecuteOptionsDUTOpts (editVerilatorDUTSimExecuteOptionsVisibleFiles f)
-global def editPrivateVerilatorDUTSimExecuteOptionsExtraArgs    f = editPrivateVerilatorDUTSimExecuteOptionsDUTOpts (editVerilatorDUTSimExecuteOptionsExtraArgs f)
+   PrivateVerilatorDUTSimExecuteOptions emptyDUTSimExecuteOptions Nil
 
 
 def toVerilatorSimExecutePlan opts compileOutputs outputDir =
-  def plusargs     = opts.getPrivateVerilatorDUTSimExecuteOptionsPlusargs
-  def visibleFiles = opts.getPrivateVerilatorDUTSimExecuteOptionsVisibleFiles
+  def dutOpts      = opts.getPrivateVerilatorDUTSimExecuteOptionsDUTOpts
+
+  def plusargs     = dutOpts.getDUTSimExecuteOptionsPlusargs
+  def visibleFiles = dutOpts.getDUTSimExecuteOptionsVisibleFiles
+  def resources    = dutOpts.getDUTSimExecuteOptionsResources
   def extraArgs    = opts.getPrivateVerilatorDUTSimExecuteOptionsExtraArgs
 
   makeVerilatorExecutePlan compileOutputs outputDir
   | setVerilatorExecutePlanPlusargs     plusargs
   | setVerilatorExecutePlanVisibleFiles visibleFiles
   | setVerilatorExecutePlanExtraArgs    extraArgs
+  | setVerilatorExecutePlanResources    resources
 
 
 # takes a VerialtorDUTSimulatorPlan and makes a DUTSimulator
@@ -150,24 +100,24 @@ global def makeVerilatorDUTSimulator plan =
     def filter sim = dutSimulatorNameEquals simName sim && dutSimulatorVendorEquals simVendor sim
 
     def compileOutputs =
-      def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsCompilePlusargs
-      def appendDUTOptions = editVerilatorDUTSimCompileOptionsGenericOpts (appendDUTSimCompileOptions dut.getDUTSimCompileOptions)
+      def appendUserPlusargs = editDUTSimCompileOptionsPlusargs (_ ++ userOptions.getUserSimulationOptionsCompilePlusargs)
+      def appendDUTOptions = appendDUTSimCompileOptions dut.getDUTSimCompileOptions
       def privateOpts =
         plan.getVerilatorDUTSimulatorPlanCompileOptions dut
         | editPrivateVerilatorDUTSimCompileOptionsDUTOpts appendDUTOptions
-        | editPrivateVerilatorDUTSimCompileOptionsPlusargs appendUserPlusargs
+        | editPrivateVerilatorDUTSimCompileOptionsDUTOpts appendUserPlusargs
         | applyPartialEdits dut (subscribe verilatorDUTSimCompileOptionsHooks)
       def outputDir = userOptions.getUserSimulationOptionsCompileOutputDir
       toVerilatorSimCompilePlan privateOpts outputDir
       | doVerilatorCompile
 
     def executeOutputs =
-      def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsExecutePlusargs
-      def appendDUTOptions = editVerilatorDUTSimExecuteOptionsGenericOpts (appendDUTSimExecuteOptions rawExecuteOptions)
+      def appendUserPlusargs = editDUTSimExecuteOptionsPlusargs (_ ++ userOptions.getUserSimulationOptionsExecutePlusargs)
+      def appendDUTOptions = (appendDUTSimExecuteOptions rawExecuteOptions)
       def privateOpts =
         plan.getVerilatorDUTSimulatorPlanExecuteOptions dut
         | editPrivateVerilatorDUTSimExecuteOptionsDUTOpts appendDUTOptions
-        | editPrivateVerilatorDUTSimExecuteOptionsPlusargs appendUserPlusargs
+        | editPrivateVerilatorDUTSimExecuteOptionsDUTOpts appendUserPlusargs
         | applyPartialEdits dut (subscribe verilatorDUTSimExecuteOptionsHooks)
       def outputDir = userOptions.getUserSimulationOptionsExecuteOutputDir
       toVerilatorSimExecutePlan privateOpts compileOutputs outputDir
@@ -182,11 +132,11 @@ global def makeVerilatorDUTSimulator plan =
 
 global def verilatorCompile dut userOptions =
   def compileOutputs =
-    def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsCompilePlusargs
-    def appendDUTOptions = editVerilatorDUTSimCompileOptionsGenericOpts (appendDUTSimCompileOptions dut.getDUTSimulationOptions.getDUTSimulationOptionsCompileOptions)
+    def appendUserPlusargs = editDUTSimCompileOptionsPlusargs (_ ++ userOptions.getUserSimulationOptionsCompilePlusargs)
+    def appendDUTOptions = (appendDUTSimCompileOptions dut.getDUTSimulationOptions.getDUTSimulationOptionsCompileOptions)
     def privateOpts =
       verilatorCompileOptsExtract False dut
-      | editPrivateVerilatorDUTSimCompileOptionsPlusargs appendUserPlusargs
+      | editPrivateVerilatorDUTSimCompileOptionsDUTOpts appendUserPlusargs
       | editPrivateVerilatorDUTSimCompileOptionsDUTOpts appendDUTOptions
       | applyPartialEdits dut (subscribe verilatorDUTSimCompileOptionsHooks)
     def outputDir = userOptions.getUserSimulationOptionsCompileOutputDir
@@ -237,14 +187,14 @@ def verilatorCompileOptsExtract waves dut =
     if waves
     then
       opts
-      | editPrivateVerilatorDUTSimCompileOptionsDefines (NamedArg "DEBUG", _)
+      | editPrivateVerilatorDUTSimCompileOptionsDUTOpts (_ | editDUTSimCompileOptionsDefines (NamedArg "DEBUG", _))
       | editPrivateVerilatorDUTSimCompileOptionsExtraArgs (NamedArg "--trace", _)
     else opts
 
   def genericOpts = freedomTestDriverSimCompileOpts dut
 
   makePrivateVerilatorDUTSimCompileOptions main prefix topModule
-  | editPrivateVerilatorDUTSimCompileOptionsDUTOpts (setVerilatorDUTSimCompileOptionsGenericOpts genericOpts)
+  | setPrivateVerilatorDUTSimCompileOptionsDUTOpts genericOpts
   | setPrivateVerilatorDUTSimCompileOptionsMakeArgs makeArgs
   | setPrivateVerilatorDUTSimCompileOptionsExtraArgs extraArgs
   | withWavesOptions
@@ -252,13 +202,15 @@ def verilatorCompileOptsExtract waves dut =
 def verilatorExecuteOptsExtract waves dut =
   def withWavesOptions opts =
     if waves
-    then opts | editPrivateVerilatorDUTSimExecuteOptionsPlusargs (NamedArgString "vcdfile" "sim.vcd", _)
+    then
+      opts
+      | editPrivateVerilatorDUTSimExecuteOptionsDUTOpts (editDUTSimExecuteOptionsPlusargs (NamedArgString "vcdfile" "sim.vcd", _))
     else opts
 
   def genericOpts = freedomTestDriverSimExecuteOpts dut
 
   makePrivateVerilatorDUTSimExecuteOptions
-  | editPrivateVerilatorDUTSimExecuteOptionsDUTOpts (setVerilatorDUTSimExecuteOptionsGenericOpts genericOpts)
+  | setPrivateVerilatorDUTSimExecuteOptionsDUTOpts genericOpts
   | withWavesOptions
 
 def makeFreedomVerilatorDUTSimulator waves =
