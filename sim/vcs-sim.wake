@@ -145,7 +145,7 @@ def vcsCompileOptsExtract waves dut =
     | editDUTSimCompileOptionsDefines (NamedArg "VCS", _)
 
   makePrivateVCSDUTSimCompileOptions
-  | setPrivateVCSDUTSimCompileOptionsDUTOpts genericOpts
+  | editPrivateVCSDUTSimCompileOptionsDUTOpts genericOpts.appendDUTSimCompileOptions
   | setPrivateVCSDUTSimCompileOptionsExtraArgs extraArgs
   | withWavesOptions
 
@@ -169,7 +169,7 @@ def vcsExecuteOptsExtract waves dut =
   def genericOpts = freedomTestDriverSimExecuteOpts dut
 
   makePrivateVCSDUTSimExecuteOptions
-  | setPrivateVCSDUTSimExecuteOptionsDUTOpts genericOpts
+  | editPrivateVCSDUTSimExecuteOptionsDUTOpts genericOpts.appendDUTSimExecuteOptions
   | editPrivateVCSDUTSimExecuteOptionsExtraArgs withExtraArgs
   | withWavesOptions
 

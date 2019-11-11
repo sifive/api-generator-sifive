@@ -70,7 +70,8 @@ tuple PrivateVerilatorDUTSimExecuteOptions =
   global ExtraArgs: List NamedArg
 
 global def makePrivateVerilatorDUTSimExecuteOptions =
-   PrivateVerilatorDUTSimExecuteOptions emptyDUTSimExecuteOptions Nil
+  def dutOpts = emptyDUTSimExecuteOptions
+  PrivateVerilatorDUTSimExecuteOptions dutOpts Nil
 
 
 def toVerilatorSimExecutePlan opts compileOutputs outputDir =
@@ -194,7 +195,7 @@ def verilatorCompileOptsExtract waves dut =
   def genericOpts = freedomTestDriverSimCompileOpts dut
 
   makePrivateVerilatorDUTSimCompileOptions main prefix topModule
-  | setPrivateVerilatorDUTSimCompileOptionsDUTOpts genericOpts
+  | editPrivateVerilatorDUTSimCompileOptionsDUTOpts genericOpts.appendDUTSimCompileOptions
   | setPrivateVerilatorDUTSimCompileOptionsMakeArgs makeArgs
   | setPrivateVerilatorDUTSimCompileOptionsExtraArgs extraArgs
   | withWavesOptions
@@ -210,7 +211,7 @@ def verilatorExecuteOptsExtract waves dut =
   def genericOpts = freedomTestDriverSimExecuteOpts dut
 
   makePrivateVerilatorDUTSimExecuteOptions
-  | setPrivateVerilatorDUTSimExecuteOptionsDUTOpts genericOpts
+  | editPrivateVerilatorDUTSimExecuteOptionsDUTOpts genericOpts.appendDUTSimExecuteOptions
   | withWavesOptions
 
 def makeFreedomVerilatorDUTSimulator waves =
