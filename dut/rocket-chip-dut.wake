@@ -20,7 +20,7 @@ tuple RuntimeRocketChipDUTArgs =
 global def makeRuntimeRocketChipDUTArgs firrtlDir verilogDir =
   RuntimeRocketChipDUTArgs firrtlDir verilogDir
 
-def listBlackBoxes =
+global def listBlackBoxesScalaModule =
   def version = firrtlScalaModule.getScalaModuleScalaVersion
   def dir = simplify "{here}/.."
   makeScalaModule "listBlackBoxes" dir version
@@ -32,7 +32,7 @@ global def getRocketChipDUTPlanProject dut =
   def deps = dut.getRocketChipDUTPlanScalaModules
   def version = rocketchipScalaModule.getScalaModuleScalaVersion
   makeScalaModule dut.getRocketChipDUTPlanName here version
-  | setScalaModuleDeps (rocketchipScalaModule, listBlackBoxes, deps)
+  | setScalaModuleDeps (rocketchipScalaModule, listBlackBoxesScalaModule, deps)
 
 global def makeRocketChipDUTPlan name module testharness config =
   RocketChipDUTPlan
