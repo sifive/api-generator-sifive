@@ -13,57 +13,27 @@ tuple XceliumDUTSimCompileOptions =
   global GenericOpts: DUTSimCompileOptions
   global ExtraArgs:   List NamedArg
 
-global def getXceliumDUTSimCompileOptionsIncludeDirs = _.getXceliumDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsIncludeDirs
-global def getXceliumDUTSimCompileOptionsDefines     = _.getXceliumDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsDefines
-global def getXceliumDUTSimCompileOptionsSourceFiles = _.getXceliumDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsSourceFiles
-global def getXceliumDUTSimCompileOptionsPlusargs    = _.getXceliumDUTSimCompileOptionsGenericOpts.getDUTSimCompileOptionsPlusargs
-
-global def setXceliumDUTSimCompileOptionsIncludeDirs v = editXceliumDUTSimCompileOptionsIncludeDirs (\_ v)
-global def setXceliumDUTSimCompileOptionsDefines     v = editXceliumDUTSimCompileOptionsDefines     (\_ v)
-global def setXceliumDUTSimCompileOptionsSourceFiles v = editXceliumDUTSimCompileOptionsSourceFiles (\_ v)
-global def setXceliumDUTSimCompileOptionsPlusargs    v = editXceliumDUTSimCompileOptionsPlusargs    (\_ v)
-
-global def editXceliumDUTSimCompileOptionsIncludeDirs f = editXceliumDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsIncludeDirs f)
-global def editXceliumDUTSimCompileOptionsDefines     f = editXceliumDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsDefines f)
-global def editXceliumDUTSimCompileOptionsSourceFiles f = editXceliumDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsSourceFiles f)
-global def editXceliumDUTSimCompileOptionsPlusargs    f = editXceliumDUTSimCompileOptionsGenericOpts (editDUTSimCompileOptionsPlusargs f)
-
 
 tuple PrivateXceliumDUTSimCompileOptions =
-  global DUTOpts:   XceliumDUTSimCompileOptions
-  global Resources: List String
-
-global def getPrivateXceliumDUTSimCompileOptionsIncludeDirs = _.getPrivateXceliumDUTSimCompileOptionsDUTOpts.getXceliumDUTSimCompileOptionsIncludeDirs
-global def getPrivateXceliumDUTSimCompileOptionsDefines     = _.getPrivateXceliumDUTSimCompileOptionsDUTOpts.getXceliumDUTSimCompileOptionsDefines
-global def getPrivateXceliumDUTSimCompileOptionsSourceFiles = _.getPrivateXceliumDUTSimCompileOptionsDUTOpts.getXceliumDUTSimCompileOptionsSourceFiles
-global def getPrivateXceliumDUTSimCompileOptionsPlusargs    = _.getPrivateXceliumDUTSimCompileOptionsDUTOpts.getXceliumDUTSimCompileOptionsPlusargs
-global def getPrivateXceliumDUTSimCompileOptionsExtraArgs   = _.getPrivateXceliumDUTSimCompileOptionsDUTOpts.getXceliumDUTSimCompileOptionsExtraArgs
-
-global def setPrivateXceliumDUTSimCompileOptionsIncludeDirs v = editPrivateXceliumDUTSimCompileOptionsIncludeDirs (\_ v)
-global def setPrivateXceliumDUTSimCompileOptionsDefines     v = editPrivateXceliumDUTSimCompileOptionsDefines     (\_ v)
-global def setPrivateXceliumDUTSimCompileOptionsSourceFiles v = editPrivateXceliumDUTSimCompileOptionsSourceFiles (\_ v)
-global def setPrivateXceliumDUTSimCompileOptionsPlusargs    v = editPrivateXceliumDUTSimCompileOptionsPlusargs    (\_ v)
-global def setPrivateXceliumDUTSimCompileOptionsExtraArgs   v = editPrivateXceliumDUTSimCompileOptionsExtraArgs   (\_ v)
-
-global def editPrivateXceliumDUTSimCompileOptionsIncludeDirs f = editPrivateXceliumDUTSimCompileOptionsDUTOpts (editXceliumDUTSimCompileOptionsIncludeDirs f)
-global def editPrivateXceliumDUTSimCompileOptionsDefines     f = editPrivateXceliumDUTSimCompileOptionsDUTOpts (editXceliumDUTSimCompileOptionsDefines f)
-global def editPrivateXceliumDUTSimCompileOptionsSourceFiles f = editPrivateXceliumDUTSimCompileOptionsDUTOpts (editXceliumDUTSimCompileOptionsSourceFiles f)
-global def editPrivateXceliumDUTSimCompileOptionsPlusargs    f = editPrivateXceliumDUTSimCompileOptionsDUTOpts (editXceliumDUTSimCompileOptionsPlusargs f)
-global def editPrivateXceliumDUTSimCompileOptionsExtraArgs   f = editPrivateXceliumDUTSimCompileOptionsDUTOpts (editXceliumDUTSimCompileOptionsExtraArgs f)
+  global DUTOpts:   DUTSimCompileOptions
+  global ExtraArgs: List NamedArg
 
 global def defaultXceliumResources = "cadence/xcelium/18.09.004", Nil
 
 global def makePrivateXceliumDUTSimCompileOptions =
-  PrivateXceliumDUTSimCompileOptions (XceliumDUTSimCompileOptions emptyDUTSimCompileOptions Nil) defaultXceliumResources
+  def dutOpts =
+    emptyDUTSimCompileOptions
+    | setDUTSimCompileOptionsResources defaultXceliumResources
+  PrivateXceliumDUTSimCompileOptions dutOpts Nil
 
 def toXceliumSimCompilePlan privateOpts outputDir =
   def dutOpts      = privateOpts.getPrivateXceliumDUTSimCompileOptionsDUTOpts
 
-  def resources      = privateOpts.getPrivateXceliumDUTSimCompileOptionsResources
-  def includeDirs    = privateOpts.getPrivateXceliumDUTSimCompileOptionsIncludeDirs
-  def defines        = privateOpts.getPrivateXceliumDUTSimCompileOptionsDefines
-  def sourceFiles    = privateOpts.getPrivateXceliumDUTSimCompileOptionsSourceFiles
-  def plusargs       = privateOpts.getPrivateXceliumDUTSimCompileOptionsPlusargs
+  def includeDirs    = dutOpts.getDUTSimCompileOptionsIncludeDirs
+  def defines        = dutOpts.getDUTSimCompileOptionsDefines
+  def sourceFiles    = dutOpts.getDUTSimCompileOptionsSourceFiles
+  def plusargs       = dutOpts.getDUTSimCompileOptionsPlusargs
+  def resources      = dutOpts.getDUTSimCompileOptionsResources
   def extraArgs      = privateOpts.getPrivateXceliumDUTSimCompileOptionsExtraArgs
 
   makeXceliumCompilePlan sourceFiles outputDir
@@ -77,40 +47,24 @@ tuple XceliumDUTSimExecuteOptions =
   global GenericOpts: DUTSimExecuteOptions
   global ExtraArgs:   List NamedArg
 
-global def getXceliumDUTSimExecuteOptionsPlusargs     = _.getXceliumDUTSimExecuteOptionsGenericOpts.getDUTSimExecuteOptionsPlusargs
-global def getXceliumDUTSimExecuteOptionsVisibleFiles = _.getXceliumDUTSimExecuteOptionsGenericOpts.getDUTSimExecuteOptionsVisibleFiles
-
-global def setXceliumDUTSimExecuteOptionsPlusargs     v = editXceliumDUTSimExecuteOptionsPlusargs     (\_ v)
-global def setXceliumDUTSimExecuteOptionsVisibleFiles v = editXceliumDUTSimExecuteOptionsVisibleFiles (\_ v)
-
-global def editXceliumDUTSimExecuteOptionsPlusargs     f = editXceliumDUTSimExecuteOptionsGenericOpts (editDUTSimExecuteOptionsPlusargs f)
-global def editXceliumDUTSimExecuteOptionsVisibleFiles f = editXceliumDUTSimExecuteOptionsGenericOpts (editDUTSimExecuteOptionsVisibleFiles f)
-
 
 tuple PrivateXceliumDUTSimExecuteOptions =
-  global DUTOpts:   XceliumDUTSimExecuteOptions
-  global Resources: List String
+  global DUTOpts:   DUTSimExecuteOptions
+  global ExtraArgs: List NamedArg
 
 global def makePrivateXceliumDUTSimExecuteOptions =
-   PrivateXceliumDUTSimExecuteOptions (XceliumDUTSimExecuteOptions emptyDUTSimExecuteOptions Nil) defaultXceliumResources
-
-global def getPrivateXceliumDUTSimExecuteOptionsPlusargs     = _.getPrivateXceliumDUTSimExecuteOptionsDUTOpts.getXceliumDUTSimExecuteOptionsPlusargs
-global def getPrivateXceliumDUTSimExecuteOptionsVisibleFiles = _.getPrivateXceliumDUTSimExecuteOptionsDUTOpts.getXceliumDUTSimExecuteOptionsVisibleFiles
-global def getPrivateXceliumDUTSimExecuteOptionsExtraArgs    = _.getPrivateXceliumDUTSimExecuteOptionsDUTOpts.getXceliumDUTSimExecuteOptionsExtraArgs
-
-global def setPrivateXceliumDUTSimExecuteOptionsPlusargs     v = editPrivateXceliumDUTSimExecuteOptionsPlusargs     (\_ v)
-global def setPrivateXceliumDUTSimExecuteOptionsVisibleFiles v = editPrivateXceliumDUTSimExecuteOptionsVisibleFiles (\_ v)
-global def setPrivateXceliumDUTSimExecuteOptionsExtraArgs    v = editPrivateXceliumDUTSimExecuteOptionsExtraArgs    (\_ v)
-
-global def editPrivateXceliumDUTSimExecuteOptionsPlusargs     f = editPrivateXceliumDUTSimExecuteOptionsDUTOpts (editXceliumDUTSimExecuteOptionsPlusargs f)
-global def editPrivateXceliumDUTSimExecuteOptionsVisibleFiles f = editPrivateXceliumDUTSimExecuteOptionsDUTOpts (editXceliumDUTSimExecuteOptionsVisibleFiles f)
-global def editPrivateXceliumDUTSimExecuteOptionsExtraArgs    f = editPrivateXceliumDUTSimExecuteOptionsDUTOpts (editXceliumDUTSimExecuteOptionsExtraArgs f)
-
+  def dutOpts =
+    emptyDUTSimExecuteOptions
+    | setDUTSimExecuteOptionsResources defaultXceliumResources
+  PrivateXceliumDUTSimExecuteOptions dutOpts Nil
 
 def toXceliumSimExecutePlan opts compileOutputs outputDir =
-  def resources      = opts.getPrivateXceliumDUTSimExecuteOptionsResources
-  def plusargs       = opts.getPrivateXceliumDUTSimExecuteOptionsPlusargs
-  def visibleFiles   = opts.getPrivateXceliumDUTSimExecuteOptionsVisibleFiles
+  def dutOpts = opts.getPrivateXceliumDUTSimExecuteOptionsDUTOpts
+
+  def resources      = dutOpts.getDUTSimExecuteOptionsResources
+  def plusargs       = dutOpts.getDUTSimExecuteOptionsPlusargs
+  def visibleFiles   = dutOpts.getDUTSimExecuteOptionsVisibleFiles
+
   def extraArgs      = opts.getPrivateXceliumDUTSimExecuteOptionsExtraArgs
 
   makeXceliumExecutePlan compileOutputs outputDir
@@ -132,24 +86,24 @@ global def makeXceliumDUTSimulator plan =
     def filter sim = dutSimulatorNameEquals simName sim && dutSimulatorVendorEquals simVendor sim
 
     def compileOutputs =
-      def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsCompilePlusargs
-      def appendDUTOptions = editXceliumDUTSimCompileOptionsGenericOpts (appendDUTSimCompileOptions rawCompileOptions)
+      def appendUserPlusargs = editDUTSimCompileOptionsPlusargs (_ ++ userOptions.getUserSimulationOptionsCompilePlusargs)
+      def appendDUTOptions = (appendDUTSimCompileOptions rawCompileOptions)
       def privateOpts =
         plan.getXceliumDUTSimulatorPlanCompileOptions dut
         | editPrivateXceliumDUTSimCompileOptionsDUTOpts appendDUTOptions
-        | editPrivateXceliumDUTSimCompileOptionsPlusargs appendUserPlusargs
+        | editPrivateXceliumDUTSimCompileOptionsDUTOpts appendUserPlusargs
         | applyPartialEdits dut (subscribe xceliumDUTSimCompileOptionsHooks)
       def outputDir = userOptions.getUserSimulationOptionsCompileOutputDir
       toXceliumSimCompilePlan privateOpts outputDir
       | doXceliumCompile
 
     def executeOutputs =
-      def appendUserPlusargs = _ ++ userOptions.getUserSimulationOptionsExecutePlusargs
-      def appendDUTOptions = editXceliumDUTSimExecuteOptionsGenericOpts (appendDUTSimExecuteOptions rawExecuteOptions)
+      def appendUserPlusargs = editDUTSimExecuteOptionsPlusargs (_ ++ userOptions.getUserSimulationOptionsExecutePlusargs)
+      def appendDUTOptions = (appendDUTSimExecuteOptions rawExecuteOptions)
       def privateOpts =
         plan.getXceliumDUTSimulatorPlanExecuteOptions dut
         | editPrivateXceliumDUTSimExecuteOptionsDUTOpts appendDUTOptions
-        | editPrivateXceliumDUTSimExecuteOptionsPlusargs appendUserPlusargs
+        | editPrivateXceliumDUTSimExecuteOptionsDUTOpts appendUserPlusargs
         | applyPartialEdits dut (subscribe xceliumDUTSimExecuteOptionsHooks)
       def outputDir = userOptions.getUserSimulationOptionsExecuteOutputDir
       toXceliumSimExecutePlan privateOpts compileOutputs outputDir
@@ -190,29 +144,32 @@ def xceliumCompileOptsExtract waves dut =
       def withExtraArgs = NamedArg "-access", NamedArg "-rwc", _
       def withDefines = NamedArg "DEBUG", _
       opts
+      | editPrivateXceliumDUTSimCompileOptionsDUTOpts (editDUTSimCompileOptionsDefines withDefines)
       | editPrivateXceliumDUTSimCompileOptionsExtraArgs withExtraArgs
-      | editPrivateXceliumDUTSimCompileOptionsDefines withDefines
     else opts
 
-  def genericOpts = freedomTestDriverSimCompileOpts dut
+  def genericOpts =
+    freedomTestDriverSimCompileOpts dut
+    | editDUTSimCompileOptionsDefines (NamedArg "Xcelium", _)
 
   makePrivateXceliumDUTSimCompileOptions
-  | editPrivateXceliumDUTSimCompileOptionsDUTOpts (setXceliumDUTSimCompileOptionsGenericOpts genericOpts)
+  | editPrivateXceliumDUTSimCompileOptionsDUTOpts genericOpts.appendDUTSimCompileOptions
   | setPrivateXceliumDUTSimCompileOptionsExtraArgs extraArgs
-  | editPrivateXceliumDUTSimCompileOptionsDefines (NamedArg "Xcelium", _)
   | withWavesOptions
 
 def xceliumExecuteOptsExtract waves dut =
   def withWavesOptions opts =
     if waves
-    then opts | editPrivateXceliumDUTSimExecuteOptionsPlusargs (NamedArgString "vcdfile" "sim.vcd", _)
+    then
+      opts
+      | editPrivateXceliumDUTSimExecuteOptionsDUTOpts (editDUTSimExecuteOptionsPlusargs (NamedArgString "vcdfile" "sim.vcd", _))
     else opts
 
   def genericOpts = freedomTestDriverSimExecuteOpts dut
 
   makePrivateXceliumDUTSimExecuteOptions
   | editPrivateXceliumDUTSimExecuteOptionsExtraArgs (NamedArg "-R", _)
-  | editPrivateXceliumDUTSimExecuteOptionsDUTOpts (setXceliumDUTSimExecuteOptionsGenericOpts genericOpts)
+  | editPrivateXceliumDUTSimExecuteOptionsDUTOpts genericOpts.appendDUTSimExecuteOptions
   | withWavesOptions
 
 def makeFreedomXceliumDUTSimulator waves =

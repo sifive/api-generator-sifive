@@ -90,9 +90,10 @@ tuple DUTSimCompileOptions =
   global Defines:        List NamedArg
   global SourceFiles:    List Path
   global Plusargs:       List NamedArg
+  global Resources:      List String # resources to pass to the simulator `Plan`
 
 global def makeDUTSimCompileOptions includeDirs defines sourceFiles plusargs =
-  DUTSimCompileOptions includeDirs defines sourceFiles plusargs
+  DUTSimCompileOptions includeDirs defines sourceFiles plusargs Nil
 
 global def emptyDUTSimCompileOptions = makeDUTSimCompileOptions Nil Nil Nil Nil
 
@@ -100,37 +101,42 @@ global def withDUTSimCompileOptions dut dutSimCompileOptions =
   dutSimCompileOptions
   | editDUTSimCompileOptionsSourceFiles (dut.getDUTVsrcs ++ _)
 
-global def appendDUTSimCompileOptions (DUTSimCompileOptions includes defines srcs plusargs) options =
+global def appendDUTSimCompileOptions (DUTSimCompileOptions includes defines srcs plusargs resources) options =
   options
   | editDUTSimCompileOptionsIncludeDirs  (_ ++ includes)
   | editDUTSimCompileOptionsDefines      (_ ++ defines)
   | editDUTSimCompileOptionsSourceFiles  (_ ++ srcs)
   | editDUTSimCompileOptionsPlusargs     (_ ++ plusargs)
+  | editDUTSimCompileOptionsResources    (_ ++ resources)
 
-global def prependDUTSimCompileOptions (DUTSimCompileOptions includes defines srcs plusargs) options =
+global def prependDUTSimCompileOptions (DUTSimCompileOptions includes defines srcs plusargs resources) options =
   options
   | editDUTSimCompileOptionsIncludeDirs  (includes ++ _)
   | editDUTSimCompileOptionsDefines      (defines ++ _)
   | editDUTSimCompileOptionsSourceFiles  (srcs ++ _)
   | editDUTSimCompileOptionsPlusargs     (plusargs ++ _)
+  | editDUTSimCompileOptionsResources    (resources ++ _)
 
 
 tuple DUTSimExecuteOptions =
   global Plusargs:       List NamedArg
   global VisibleFiles:   List Path
+  global Resources:      List String # resources to pass to the simulator `Plan`
 
-global def makeDUTSimExecuteOptions = DUTSimExecuteOptions _ _
+global def makeDUTSimExecuteOptions = DUTSimExecuteOptions _ _ Nil
 
 global def emptyDUTSimExecuteOptions = makeDUTSimExecuteOptions Nil Nil
 
 global def withDUTSimExecuteOptions dut dutSimExecuteOptions = dutSimExecuteOptions
 
-global def appendDUTSimExecuteOptions (DUTSimExecuteOptions plusargs visibleFiles) options =
+global def appendDUTSimExecuteOptions (DUTSimExecuteOptions plusargs visibleFiles resources) options =
   options
   | editDUTSimExecuteOptionsPlusargs     (_ ++ plusargs)
   | editDUTSimExecuteOptionsVisibleFiles (_ ++ visibleFiles)
+  | editDUTSimExecuteOptionsResources (_ ++ resources)
 
-global def prependDUTSimExecuteOptions (DUTSimExecuteOptions plusargs visibleFiles) options =
+global def prependDUTSimExecuteOptions (DUTSimExecuteOptions plusargs visibleFiles resources) options =
   options
   | editDUTSimExecuteOptionsPlusargs     (plusargs ++ _)
   | editDUTSimExecuteOptionsVisibleFiles (visibleFiles ++ _)
+  | editDUTSimExecuteOptionsResources    (resources ++ _)

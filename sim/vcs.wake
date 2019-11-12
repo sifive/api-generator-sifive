@@ -103,9 +103,10 @@ tuple VCSExecutePlan =
   global ExtraArgs:      List NamedArg
   global StderrTailNum:  Integer
   global StdoutTailNum:  Integer
+  global Resources:      List String
 
 global def makeVCSExecutePlan compileOutputs outputDir =
-  VCSExecutePlan outputDir Nil Nil compileOutputs Nil 5000 5000
+  VCSExecutePlan outputDir Nil Nil compileOutputs Nil 5000 5000 Nil
 
 global def doVCSExecute options =
   def compileOutputs = options.getVCSExecutePlanCompileOutputs
@@ -134,6 +135,7 @@ global def doVCSExecute options =
   def jobResult =
     makePlan cmdline inputs
     | setPlanDirectory outputDir
+    | setPlanResources options.getVCSExecutePlanResources
     | runJob
 
   VCSExecuteOutputs options jobResult
