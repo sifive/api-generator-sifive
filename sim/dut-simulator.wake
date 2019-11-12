@@ -90,7 +90,7 @@ tuple DUTSimCompileOptions =
   global Defines:        List NamedArg
   global SourceFiles:    List Path
   global Plusargs:       List NamedArg
-  global Resources:      List String
+  global Resources:      List String # resources to pass to the simulator `Plan`
 
 global def makeDUTSimCompileOptions includeDirs defines sourceFiles plusargs =
   DUTSimCompileOptions includeDirs defines sourceFiles plusargs Nil
@@ -121,7 +121,7 @@ global def prependDUTSimCompileOptions (DUTSimCompileOptions includes defines sr
 tuple DUTSimExecuteOptions =
   global Plusargs:       List NamedArg
   global VisibleFiles:   List Path
-  global Resources:      List String
+  global Resources:      List String # resources to pass to the simulator `Plan`
 
 global def makeDUTSimExecuteOptions = DUTSimExecuteOptions _ _ Nil
 
