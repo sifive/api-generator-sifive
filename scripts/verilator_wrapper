@@ -2,4 +2,22 @@
 
 VERILATOR_PATH=$(which verilator)
 unset VERILATOR_ROOT
-perl $VERILATOR_PATH "$@"
+
+OIFS="$IFS"
+IFS=":"
+
+includes="$WAKE_IP_RESOURCE_INCLUDES"
+include_args=( )
+for include in $includes; do
+  include_args+=( +incdir+"$include" )
+done
+
+files="$WAKE_IP_RESOURCE_FILES"
+file_args=( )
+for file in $files; do
+  file_args+=( "$file" )
+done
+
+IFS="$OIFS"
+
+perl $VERILATOR_PATH "${file_args[@]}" "${include_args[@]}" "$@"
