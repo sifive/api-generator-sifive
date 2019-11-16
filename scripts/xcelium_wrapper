@@ -1,0 +1,20 @@
+#!/bin/bash -x
+
+OIFS="$IFS"
+IFS=":"
+
+includes="$WAKE_IP_RESOURCE_INCLUDES"
+include_args=( )
+for include in $includes; do
+  include_args+=( +incdir+"$include" )
+done
+
+files="$WAKE_IP_RESOURCE_FILES"
+file_args=( )
+for file in $files; do
+  file_args+=( "$file" )
+done
+
+IFS="$OIFS"
+
+xrun "${file_args[@]}" "${include_args[@]}" "$@"

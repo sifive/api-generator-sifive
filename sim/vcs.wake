@@ -23,6 +23,8 @@ global def makeVCSCompilePlan sourceFiles outputDir =
   "{outputDir}/tmp"     # TmpDir
   outputDir             # OutputDir
 
+def vcsWrapperScript = simplify "{here}/../scripts/vcs_wrapper"
+
 def compileCmdlineArgs options =
   def outputDir    = options.getVCSCompilePlanOutputDir
   def includeDirs  = options.getVCSCompilePlanIncludeDirs
@@ -39,11 +41,13 @@ def compileCmdlineArgs options =
   def plusargArgs = namedArgsToCmdline runDir "+" "=" plusargs
   def fileArgs    = map (relative runDir _.getPathName) files
 
+  relative runDir vcsWrapperScript,
   includeArgs
   ++ defineArgs
   ++ plusargArgs
   ++ otherArgs
   ++ fileArgs
+
 
 def compileInputs options =
   def outputDir    = options.getVCSCompilePlanOutputDir
@@ -53,12 +57,12 @@ def compileInputs options =
 
   def includeSources = map (sources _ `.*`) includeDirs | flatten
 
-  mkdir tmpDir, mkdir outputDir, includeSources ++ srcFiles
+  source vcsWrapperScript, mkdir tmpDir, mkdir outputDir, includeSources ++ srcFiles
 
 global def doVCSCompile options =
   def outputDir = options.getVCSCompilePlanOutputDir
-  def cmdline = "vcs", options.compileCmdlineArgs
-  def inputs = options.compileInputs
+  def cmdline = options.compileCmdlineArgs
+  def inputs = source vcsWrapperScript, options.compileInputs
 
   def tmpDirEnv =
     def rawTmpDir = options.getVCSCompilePlanTmpDir
