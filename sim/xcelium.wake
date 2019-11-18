@@ -21,6 +21,8 @@ global def makeXceliumCompilePlan sourceFiles outputDir =
   "{outputDir}/home" # FHomeDir
   outputDir          # OutputDir
 
+def xrunWrapperScript = simplify "{here}/../scripts/xcelium_wrapper"
+
 def compileCmdlineArgs options =
   def outputDir    = options.getXceliumCompilePlanOutputDir
   def plusargs     = options.getXceliumCompilePlanPlusargs
@@ -37,6 +39,7 @@ def compileCmdlineArgs options =
   def plusargArgs = namedArgsToCmdline runDir "+" "=" plusargs
   def fileArgs = map (relative runDir _.getPathName) files
 
+  relative runDir xrunWrapperScript,
   includeArgs
   ++ defineArgs
   ++ plusargArgs
@@ -52,12 +55,11 @@ def compileInputs options =
   def includeSources = map (sources _ `.*`) includeDirs | flatten
   def homeSources = sources homeDir `.*`
 
-  mkdir outputDir, includeSources ++ srcFiles ++ homeSources# ++ includeDirs
+  source xrunWrapperScript, mkdir outputDir, includeSources ++ srcFiles ++ homeSources# ++ includeDirs
 
 global def doXceliumCompile options =
   def outputDir = options.getXceliumCompilePlanOutputDir
-  def cmdline = "xrun", options.compileCmdlineArgs
-
+  def cmdline = options.compileCmdlineArgs
   def inputs = options.compileInputs
 
   def homeDirEnv =
