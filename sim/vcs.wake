@@ -62,7 +62,7 @@ def compileInputs options =
 global def doVCSCompile options =
   def outputDir = options.getVCSCompilePlanOutputDir
   def cmdline = options.compileCmdlineArgs
-  def inputs = source vcsWrapperScript, options.compileInputs
+  def inputs = options.compileInputs
 
   def tmpDirEnv =
     def rawTmpDir = options.getVCSCompilePlanTmpDir

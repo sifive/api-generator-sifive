@@ -60,7 +60,7 @@ def compileInputs options =
 global def doXceliumCompile options =
   def outputDir = options.getXceliumCompilePlanOutputDir
   def cmdline = options.compileCmdlineArgs
-  def inputs = source xrunWrapperScript, options.compileInputs
+  def inputs = options.compileInputs
 
   def homeDirEnv =
     def rawHomeDir = options.getXceliumCompilePlanFHomeDir
