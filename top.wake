@@ -96,8 +96,16 @@ global def singleSimTarget simName waves dut buildRoot dutTest =
 
     def result dut outputs options =
       def statusFile =
-        outputs.getSimulationOutputOutputs
-        | find (matches `([^/]*/)*status\.log` _.getPathName)
+        def result =
+          def simOutputs = outputs.getSimulationOutputOutputs
+          simOutputs
+          | map getPathResult
+          | findFail
+          | rmap (\_ find (matches `([^/]*/)*status\.log` _.getPathName) simOutputs)
+        match result
+          Pass (Some (Pair f _)) = f
+          Pass (None) = "no status.log file found".makeError.makeBadPath
+          Fail e = e.makeBadPath
 
       def checkStatus statusFileContents =
         def failRegex = `^FAILED with status (.*)$`
@@ -112,15 +120,23 @@ global def singleSimTarget simName waves dut buildRoot dutTest =
           None          False = makeTestResultFail statusFileContents None
           (Some status) _     = makeTestResultFail statusFileContents status.int
 
-      #not ideal. silent fail
-      def testResult = match statusFile
-        Some (Pair f _) = f | read | getWhenFail '' | checkStatus
-        None            = makeTestResultFail "FAILED: could not read status.log!" None
+      def testResult =
+        def statusResult =
+          statusFile
+          | read
+          | rmap checkStatus
+        match statusResult
+          Pass status = status
+          Fail e = makeTestResultFail e.getErrorCause None
       testResult
 
     def reporter dut outputs options =
-      def simErr = write "{options.getSimCheckerOptionsOutputDir}/sim.err" outputs.getSimulationOutputStderr
-      def simOut = write "{options.getSimCheckerOptionsOutputDir}/sim.out" outputs.getSimulationOutputStdout
+      def simErr = match outputs.getSimulationOutputStderr
+        Fail e = makeBadPath e
+        Pass contents = write "{options.getSimCheckerOptionsOutputDir}/sim.err" contents
+      def simOut = match outputs.getSimulationOutputStdout
+        Fail e = makeBadPath e
+        Pass contents = write "{options.getSimCheckerOptionsOutputDir}/sim.out" contents
       match (result dut outputs options)
         TestFail failed = "FAILED: {failed.getTestFailedMsg}"
         TestPass passed = passed.getTestPassedMsg

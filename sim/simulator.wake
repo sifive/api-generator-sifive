@@ -1,7 +1,3 @@
-def mustPass x = match x
-  Pass a = a
-  Fail b = panic b.format
-
 tuple TestFailed =
   global Msg:    String
   global Status: Option Integer
@@ -34,8 +30,8 @@ global def getTestResultStatus = match _
 
 tuple SimulationOutput =
   Outputs_: List Path
-  Stdout_:  String
-  Stderr_:  String
+  Stdout_:  Result String Error
+  Stderr_:  Result String Error
   Status_:  Integer
 
 def peelStatus = match _
@@ -46,8 +42,8 @@ def peelStatus = match _
 global def makeSimulationOutput job =
   SimulationOutput
   job.getJobFailedOutputs
-  (mustPass job.getJobStdout)
-  (mustPass job.getJobStderr)
+  job.getJobStdout
+  job.getJobStderr
   (peelStatus job.getJobStatus)
 
 global def getSimulationOutputOutputs = getSimulationOutputOutputs_
