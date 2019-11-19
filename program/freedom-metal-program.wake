@@ -1,4 +1,28 @@
 # FIXME
+def addMetalMemory type memSubnode inDTSContents =
+  def subnodeOpt =
+    match "({memSubnode}@[0-9]+)".stringToRegExp
+      Pass regex =
+        def nodeRegex = regExpCat (`^\t\t`, `(?:L[0-9]+:\s)?`, regex, `\s{$`, Nil)
+        inDTSContents
+        | map nodeRegex.extract
+        | flatten
+        | head
+        | omap ("/soc/{_}")
+      Fail _ = None
+
+  match subnodeOpt
+    Some subnode =
+      def asdf =
+        inDTSContents
+        | mapFlat (\a (
+          if matches `^\tchosen\s{$` a
+          then ("\tchosen \{", "\t\tmetal,{type} = <&\{{subnode}\}>;", Nil)
+          else a, Nil
+        ))
+      asdf
+    None = inDTSContents
+
 def addEntry (Pair memSubnode offsetInt) inDTSContents =
   def offset = "0x{strbase 16 offsetInt}"
   def subnodeOpt =
@@ -97,7 +121,7 @@ def addChosenNode inDTSContents =
   ++ chosenNode
   ++ secondSplit.getPairSecond
 
-global target fixupDTS dts metalEntryPairOpt =
+global target fixupDTS dts metalEntryPairOpt romNode ramNode =
   def clkFrequency = 32500000
   def prefix =
     extract `(.*)\.dts` dts.getPathName
@@ -111,7 +135,8 @@ global target fixupDTS dts metalEntryPairOpt =
       | addChosenNode
       | addStdoutChosenFromAlias
       | (omap addEntry metalEntryPairOpt | getOrElse (_))
-      | addHfclk clkFrequency
+      | (omap "rom".addMetalMemory romNode | getOrElse (_))
+      | (omap "ram".addMetalMemory ramNode | getOrElse (_))
       | catWith "\n"
       | write "{prefix}_fixed.dts"
     fail = dts
@@ -199,7 +224,11 @@ global def freedomMetalDUTProgramCompiler =
     def outputDir = programCompileOptions.getProgramCompileOptionsOutputDir
     def installDir = "build/freedom-metal/{dut.getDUTName}"
     def metalInstall =
-      fixupDTS dut.getRocketChipDUTDTS None
+      fixupDTS
+      dut.getRocketChipDUTDTS
+      programCompileOptions.getProgramCompileOptionsEntry
+      programCompileOptions.getProgramCompileOptionsRom
+      programCompileOptions.getProgramCompileOptionsRam
       | (generateMetalFromDts _ dut.getDUTName installDir)
     def gccProgramPlan =
       def outputFile = "{outputDir}/{programCompileOptions.getProgramCompileOptionsName}.elf"
