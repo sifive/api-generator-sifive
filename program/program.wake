@@ -36,6 +36,9 @@ tuple TestProgramPlan =
   global IncludeDirs: List String
   global Sources:     List Path
   global Filter:      DUTProgramCompiler => Boolean
+  global Entry:       Option (Pair String Integer)
+  global Rom:         Option String
+  global Ram:         Option String
 
 global def makeTestProgramPlan name cfiles =
   TestProgramPlan
@@ -46,6 +49,9 @@ global def makeTestProgramPlan name cfiles =
   Nil       # IncludeDirs: List String
   Nil       # Sources:     List Path
   (\_ True) # Filter:      DUTProgramCompiler => Boolean
+  None
+  None
+  None
 
 global def testProgramPlanToProgramCompileOptions plan outputDir =
   def name        = plan.getTestProgramPlanName
@@ -55,6 +61,10 @@ global def testProgramPlanToProgramCompileOptions plan outputDir =
   def includeDirs = plan.getTestProgramPlanIncludeDirs
   def sources     = plan.getTestProgramPlanSources
   def filter      = plan.getTestProgramPlanFilter
+  def entry       = plan.getTestProgramPlanEntry
+  def rom         = plan.getTestProgramPlanRom
+  def ram         = plan.getTestProgramPlanRam
+
   ProgramCompileOptions
   name
   cFlags
@@ -64,6 +74,9 @@ global def testProgramPlanToProgramCompileOptions plan outputDir =
   sources
   outputDir
   filter
+  entry
+  rom
+  ram
 
 global def testProgramPlanToGCCProgramPlan outputFile plan =
   testProgramPlanToProgramCompileOptions plan "{outputFile}/..".simplify
@@ -79,13 +92,19 @@ tuple ProgramCompileOptions =
   global Sources:     List Path
   global OutputDir:   String
   global Filter:      DUTProgramCompiler => Boolean
+  global Entry:       Option (Pair String Integer)
+  global Rom:         Option String
+  global Ram:         Option String
 
 global def makeProgramCompileOptions name cflags cfiles outputDir =
   def asFlags     = Nil
   def includeDirs = Nil
   def sources     = Nil
   def filter      = (\_ True)
-  ProgramCompileOptions name cflags asFlags cfiles includeDirs sources outputDir filter
+  def entry = None
+  def rom = None
+  def ram = None
+  ProgramCompileOptions name cflags asFlags cfiles includeDirs sources outputDir filter entry rom ram
 
 global def programCompileOptionsToGCCProgramPlan outputFile plan =
   def name        = plan.getProgramCompileOptionsName
