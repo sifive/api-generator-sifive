@@ -5,7 +5,7 @@ tuple VerilatorDUTSimulatorPlan =
   global CompileOptions: DUT => PrivateVerilatorDUTSimCompileOptions
   global ExecuteOptions: DUT => PrivateVerilatorDUTSimExecuteOptions
 
-def makeVerilatorDUTSimulatorPlan testDriver waves score compileOptions executeOptions =
+global def makeVerilatorDUTSimulatorPlan testDriver waves score compileOptions executeOptions =
   VerilatorDUTSimulatorPlan testDriver waves score compileOptions executeOptions
 
 
