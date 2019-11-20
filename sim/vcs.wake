@@ -82,10 +82,15 @@ global def doVCSCompile options =
 
   def simv =
     def simvFilename = "{outputDir}/simv"
-    def findSimv = find (matches simvFilename.quote _.getPathName) vcsOutputs
+    def findSimv =
+      vcsOutputs
+      | map getPathResult
+      | findFail
+      | rmap (\_ find (matches simvFilename.quote _.getPathName) vcsOutputs)
     match findSimv
-      None            = "VCS compile failed!".makeError.makeBadPath
-      Some (Pair s _) = s
+      Fail e = e.makeBadPath
+      Pass (Some (Pair s _)) = s
+      Pass (None) = "VCS compile failed: no simv found".makeError.makeBadPath
 
   VCSCompileOutputs vcsOutputs options simv
 
