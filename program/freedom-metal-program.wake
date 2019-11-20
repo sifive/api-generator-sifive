@@ -59,31 +59,11 @@ def addSocSubnodeField subnodeRegex (Pair fieldName fieldValue) inDTSContents =
   else
     inDTSContents
 
-def addHfclk frequency dtsContents =
-  if exists `^\t\tstdout-path = .*$`.matches dtsContents
-  then
-    def hfclkField = Pair "clocks" "<&hfclk>"
-    def hfclkNode =
-      "\t\thfclk: clock@0 \{",
-      "\t\t\t#clock-cells = <0>;",
-      "\t\t\tcompatible = \"fixed-clock\";",
-      "\t\t\tclock-frequency = <{str frequency}>;",
-      "\t\t\};",
-      "",
-      Nil
-    dtsContents
-    | addSocSubnode hfclkNode
-    | addSocSubnodeField `(L[a-zA-Z0-9_]+:\s)?serial@[0-9]+` hfclkField
-  else
-    dtsContents
-
 def splitTo f l =  match l
   Nil  = Pair Nil Nil
   h, t if f h = Pair (h, Nil) t
   h, t = match (splitTo f t)
     Pair f s = Pair (h, f) s
-
-def addSocSubnode = addSubnode `(L[a-zA-Z0-9_]+:\s)?soc`
 
 def addChosenSubnode = addSubnode `(L[a-zA-Z0-9_]+:\s)?chosen`
 
@@ -134,7 +114,6 @@ global target fixupDTS dts metalEntryPairOpt romNode ramNode =
       | addChosenNode
       | addStdoutChosenFromAlias
       | (omap addEntry metalEntryPairOpt | getOrElse (_))
-      | addHfclk clkFrequency
       | (omap "metal,rom".addChosenRef romNode | getOrElse (_))
       | (omap "metal,ram".addChosenRef ramNode | getOrElse (_))
       | catWith "\n"

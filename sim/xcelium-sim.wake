@@ -5,7 +5,7 @@ tuple XceliumDUTSimulatorPlan =
   global CompileOptions: DUT => PrivateXceliumDUTSimCompileOptions
   global ExecuteOptions: DUT => PrivateXceliumDUTSimExecuteOptions
 
-def makeXceliumDUTSimulatorPlan testDriver waves score compileOptions executeOptions =
+global def makeXceliumDUTSimulatorPlan testDriver waves score compileOptions executeOptions =
   XceliumDUTSimulatorPlan testDriver waves score compileOptions executeOptions
 
 
