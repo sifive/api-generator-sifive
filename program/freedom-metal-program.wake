@@ -134,7 +134,6 @@ global target fixupDTS dts metalEntryPairOpt romNode ramNode =
       | addChosenNode
       | addStdoutChosenFromAlias
       | (omap addEntry metalEntryPairOpt | getOrElse (_))
-      | addHfclk clkFrequency
       | (omap "metal,rom".addChosenRef romNode | getOrElse (_))
       | (omap "metal,ram".addChosenRef ramNode | getOrElse (_))
       | catWith "\n"
