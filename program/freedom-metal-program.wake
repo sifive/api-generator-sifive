@@ -1,9 +1,10 @@
-# FIXME
-def addMetalMemory type memSubnode inDTSContents =
+# takes a device tree property name and a subnode type and injects a reference
+# to the first occurance of that subnode type to the chosen node
+def addChosenRef name socSubNode inDTSContents =
   def subnodeOpt =
-    match "({memSubnode}@[0-9]+)".stringToRegExp
+    match "({socSubNode}@[a-fA-F0-9]+)".stringToRegExp
       Pass regex =
-        def nodeRegex = regExpCat (`^\t\t`, `(?:L[0-9]+:\s)?`, regex, `\s{$`, Nil)
+        def nodeRegex = regExpCat (`^\t\t`, `(?:L[a-zA-Z0-9_]+:\s)?`, regex, `\s{$`, Nil)
         inDTSContents
         | map nodeRegex.extract
         | flatten
@@ -13,14 +14,12 @@ def addMetalMemory type memSubnode inDTSContents =
 
   match subnodeOpt
     Some subnode =
-      def asdf =
-        inDTSContents
-        | mapFlat (\a (
-          if matches `^\tchosen\s{$` a
-          then ("\tchosen \{", "\t\tmetal,{type} = <&\{{subnode}\}>;", Nil)
-          else a, Nil
-        ))
-      asdf
+      inDTSContents
+      | mapFlat (\a (
+        if matches `^\tchosen\s{$` a
+        then ("\tchosen \{", "\t\t{name} = <&\{{subnode}\}>;", Nil)
+        else a, Nil
+      ))
     None = inDTSContents
 
 def addEntry (Pair memSubnode offsetInt) inDTSContents =
@@ -28,7 +27,7 @@ def addEntry (Pair memSubnode offsetInt) inDTSContents =
   def subnodeOpt =
     match "({memSubnode}@[0-9]+)".stringToRegExp
       Pass regex =
-        def nodeRegex = regExpCat (`^\t\t`, `(?:L[0-9]+:\s)?`, regex, `\s{$`, Nil)
+        def nodeRegex = regExpCat (`^\t\t`, `(?:L[a-zA-Z0-9_]+:\s)?`, regex, `\s{$`, Nil)
         inDTSContents
         | map nodeRegex.extract
         | flatten
@@ -47,7 +46,7 @@ def reWrap regex = match "({regex.regExpToString})".stringToRegExp
   Fail e = panic "Parenthesized string is an invalid Regular Expression: ({regex.regExpToString})"
 
 def addSocSubnodeField subnodeRegex (Pair fieldName fieldValue) inDTSContents =
-  def socSplit = splitTo `\t(L[0-9]+:\s)?soc\s{$`.matches inDTSContents
+  def socSplit = splitTo `\t(L[a-zA-Z0-9_]+:\s)?soc\s{$`.matches inDTSContents
   def subnodeSplit =
     def regex = regExpCat (`^\t{2}`, subnodeRegex.reWrap, `\s{$`, Nil)
     splitTo regex.matches socSplit.getPairSecond
@@ -74,7 +73,7 @@ def addHfclk frequency dtsContents =
       Nil
     dtsContents
     | addSocSubnode hfclkNode
-    | addSocSubnodeField `(L[0-9]+:\s)?serial@[0-9]+` hfclkField
+    | addSocSubnodeField `(L[a-zA-Z0-9_]+:\s)?serial@[0-9]+` hfclkField
   else
     dtsContents
 
@@ -84,9 +83,9 @@ def splitTo f l =  match l
   h, t = match (splitTo f t)
     Pair f s = Pair (h, f) s
 
-def addSocSubnode = addSubnode `(L[0-9]+:\s)?soc`
+def addSocSubnode = addSubnode `(L[a-zA-Z0-9_]+:\s)?soc`
 
-def addChosenSubnode = addSubnode `(L[0-9]+:\s)?chosen`
+def addChosenSubnode = addSubnode `(L[a-zA-Z0-9_]+:\s)?chosen`
 
 def addSubnode parentNode node inDTSContents =
   def split =
@@ -96,13 +95,13 @@ def addSubnode parentNode node inDTSContents =
   split.getPairFirst ++ node ++ split.getPairSecond
 
 def addStdoutChosenFromAlias inDTSContents =
-  def parentNode = `(L[0-9]+:\s)soc`
+  def parentNode = `(L[a-zA-Z0-9_]+:\s)soc`
   def firstSplit = splitTo (`^\t`, parentNode, `\s{$`, Nil).regExpCat.matches inDTSContents
   def secondSplit = splitUntil `\t\};$`.matches firstSplit.getPairSecond
   def socContents = secondSplit.getPairFirst
   def baudrate = 115200
   def serialNodes =
-    map `^\t\t(?:L[0-9]+:\s)?(serial@[0-9]+)\s{$`.extract socContents | flatten
+    map `^\t\t(?:L[a-zA-Z0-9_]+:\s)?(serial@[0-9]+)\s{$`.extract socContents | flatten
   match serialNodes
     serialNode, _ =
       def stdChosen =
@@ -136,8 +135,8 @@ global target fixupDTS dts metalEntryPairOpt romNode ramNode =
       | addStdoutChosenFromAlias
       | (omap addEntry metalEntryPairOpt | getOrElse (_))
       | addHfclk clkFrequency
-      | (omap "rom".addMetalMemory romNode | getOrElse (_))
-      | (omap "ram".addMetalMemory ramNode | getOrElse (_))
+      | (omap "metal,rom".addChosenRef romNode | getOrElse (_))
+      | (omap "metal,ram".addChosenRef ramNode | getOrElse (_))
       | catWith "\n"
       | write "{prefix}_fixed.dts"
     fail = dts
