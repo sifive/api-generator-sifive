@@ -210,8 +210,7 @@ def verilatorCompileOptsExtract waves dut =
 
   def extraArgs =
     def cflags =
-      "-std=c++14",
-      "-no-pie",
+      "-std=c++11",
       "-DTEST_HARNESS={prefix}",
       Nil
 

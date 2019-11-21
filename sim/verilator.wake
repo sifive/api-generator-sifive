@@ -87,6 +87,7 @@ global def doVerilatorCompile options =
     def verilatorPrefix = options.getVerilatorCompilePlanPrefix
     def makeFileName = "{outputDir}/{verilatorPrefix}.mk"
     "make",
+    "-e",
     "--directory={outputDir}",
     "--makefile={relative outputDir makeFileName}",
     namedArgsToCmdline outputDir "" "" options.getVerilatorCompilePlanMakeArgs
