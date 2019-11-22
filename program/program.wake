@@ -243,7 +243,8 @@ global def makePlusargProgramLoader plusarg memoryRegion score compiler =
     def outputDir = loaderOptions.getProgramLoaderOptionsOutputDir
     def programOptions = loaderOptions.getProgramLoaderOptionsProgramOptions
     def hex =
-      def bitWidth = 64 # TODO: get from object model
+      def bitWidthOpt = getMemoryRegion dut.getDUTObjectModel memoryRegion
+      def bitWidth = getOrElse 32 bitWidthOpt
       def hexFile = "{outputDir}/{programOptions.getProgramCompileOptionsName}.hex"
       makeDUTProgram compiler dut programOptions
       | getDUTProgramBinary
@@ -262,3 +263,16 @@ global def makeSingleStageBootLoader loader score =
   def loaders = (\_ \_ Nil)
   def finalLoader = (\_ \_ loader)
   makeSimBootloaderPlan name score loaders finalLoader | makeSimBootloader
+
+def getMemoryRegion objectModel memoryRegion =
+    def isOMSRAM jValue =
+      jValue.getJArray.isNone
+      && jValue // `_types` ==/ JString "OMSRAM"
+
+    def isMemoryRegion = _ // `description` ==/ JString memoryRegion
+
+    objectModel
+    /../ isOMSRAM
+    /| isMemoryRegion
+    // `dataWidth`
+    | getJInteger
