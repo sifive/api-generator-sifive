@@ -39,6 +39,7 @@ tuple TestProgramPlan =
   global Entry:       Option (Pair String Integer)
   global Rom:         Option String
   global Ram:         Option String
+  global StdoutPath:  Option String
 
 global def makeTestProgramPlan name cfiles =
   TestProgramPlan
@@ -52,6 +53,7 @@ global def makeTestProgramPlan name cfiles =
   None
   None
   None
+  (Some "simSerial")
 
 global def testProgramPlanToProgramCompileOptions plan outputDir =
   def name        = plan.getTestProgramPlanName
@@ -64,6 +66,7 @@ global def testProgramPlanToProgramCompileOptions plan outputDir =
   def entry       = plan.getTestProgramPlanEntry
   def rom         = plan.getTestProgramPlanRom
   def ram         = plan.getTestProgramPlanRam
+  def stdoutPath  = plan.getTestProgramPlanStdoutPath
 
   ProgramCompileOptions
   name
@@ -77,6 +80,7 @@ global def testProgramPlanToProgramCompileOptions plan outputDir =
   entry
   rom
   ram
+  stdoutPath
 
 global def testProgramPlanToGCCProgramPlan outputFile plan =
   testProgramPlanToProgramCompileOptions plan "{outputFile}/..".simplify
@@ -95,6 +99,7 @@ tuple ProgramCompileOptions =
   global Entry:       Option (Pair String Integer)
   global Rom:         Option String
   global Ram:         Option String
+  global StdoutPath:  Option String
 
 global def makeProgramCompileOptions name cflags cfiles outputDir =
   def asFlags     = Nil
@@ -104,7 +109,9 @@ global def makeProgramCompileOptions name cflags cfiles outputDir =
   def entry = None
   def rom = None
   def ram = None
-  ProgramCompileOptions name cflags asFlags cfiles includeDirs sources outputDir filter entry rom ram
+  def stdoutPath = None
+
+  ProgramCompileOptions name cflags asFlags cfiles includeDirs sources outputDir filter entry rom ram stdoutPath
 
 global def programCompileOptionsToGCCProgramPlan outputFile plan =
   def name        = plan.getProgramCompileOptionsName
