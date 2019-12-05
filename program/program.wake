@@ -97,9 +97,9 @@ tuple ProgramCompileOptions =
   global OutputDir:   String
   global Filter:      DUTProgramCompiler => Boolean
   global Entry:       Option (Pair String Integer)
-  global Rom:         Option String
-  global Ram:         Option String
-  global StdoutPath:  Option String
+  global Rom:         Option String # name of the DTS node to set the 'metal,rom' chosen node to
+  global Ram:         Option String # name of the DTS node to set the 'metal,ram' chosen node to
+  global StdoutPath:  Option String # name of the DTS node to set the 'stdout-path' chosen node to
 
 global def makeProgramCompileOptions name cflags cfiles outputDir =
   def asFlags     = Nil
