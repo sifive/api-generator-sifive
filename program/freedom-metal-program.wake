@@ -74,20 +74,23 @@ def addSubnode parentNode node inDTSContents =
     Pair (firstSplit.getPairFirst ++ secondSplit.getPairFirst) (secondSplit.getPairSecond)
   split.getPairFirst ++ node ++ split.getPairSecond
 
-def addStdoutChosenFromAlias inDTSContents =
+def addStdoutChosenFromAlias nodeName inDTSContents =
   def parentNode = `(L[a-zA-Z0-9_]+:\s)soc`
   def firstSplit = splitTo (`^\t`, parentNode, `\s{$`, Nil).regExpCat.matches inDTSContents
   def secondSplit = splitUntil `\t\};$`.matches firstSplit.getPairSecond
   def socContents = secondSplit.getPairFirst
   def baudrate = 115200
-  def serialNodes =
-    map `^\t\t(?:L[a-zA-Z0-9_]+:\s)?(serial@[0-9]+)\s{$`.extract socContents | flatten
-  match serialNodes
-    serialNode, _ =
-      def stdChosen =
-        "\t\tstdout-path = \"/soc/{serialNode}:{str baudrate}\";", Nil
-      addChosenSubnode stdChosen inDTSContents
-    _ = inDTSContents
+  match "({regExpToString nodeName.quote}@[0-9]+)".stringToRegExp
+    Fail e = inDTSContents
+    Pass nodeRegex =
+      def regex = regExpCat (`^\t\t(?:L[0-9]+:\s)?`, nodeRegex, `\s{$`, Nil)
+      def serialNodes = map regex.extract socContents | flatten
+      match serialNodes
+        serialNode, _ =
+          def stdChosen =
+            "\t\tstdout-path = \"/soc/{serialNode}:{str baudrate}\";", Nil
+          addChosenSubnode stdChosen inDTSContents
+        _ = inDTSContents
 
 def addChosenNode inDTSContents =
   def parentNode = "/"
@@ -100,7 +103,7 @@ def addChosenNode inDTSContents =
   ++ chosenNode
   ++ secondSplit.getPairSecond
 
-global target fixupDTS dts metalEntryPairOpt romNode ramNode =
+global target fixupDTS dts stdoutPath metalEntryPairOpt romNode ramNode =
   def clkFrequency = 32500000
   def prefix =
     extract `(.*)\.dts` dts.getPathName
@@ -112,7 +115,7 @@ global target fixupDTS dts metalEntryPairOpt romNode ramNode =
       dtsContents
       | tokenize `\n`
       | addChosenNode
-      | addStdoutChosenFromAlias
+      | (omap addStdoutChosenFromAlias stdoutPath | getOrElse (_))
       | (omap addEntry metalEntryPairOpt | getOrElse (_))
       | (omap "metal,rom".addChosenRef romNode | getOrElse (_))
       | (omap "metal,ram".addChosenRef ramNode | getOrElse (_))
@@ -205,6 +208,7 @@ global def freedomMetalDUTProgramCompiler =
     def metalInstall =
       fixupDTS
       dut.getRocketChipDUTDTS
+      programCompileOptions.getProgramCompileOptionsStdoutPath
       programCompileOptions.getProgramCompileOptionsEntry
       programCompileOptions.getProgramCompileOptionsRom
       programCompileOptions.getProgramCompileOptionsRam

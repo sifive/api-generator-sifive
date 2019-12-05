@@ -37,8 +37,9 @@ tuple TestProgramPlan =
   global Sources:     List Path
   global Filter:      DUTProgramCompiler => Boolean
   global Entry:       Option (Pair String Integer)
-  global Rom:         Option String
-  global Ram:         Option String
+  global Rom:         Option String # name of the DTS node to set the 'metal,rom' chosen node to
+  global Ram:         Option String # name of the DTS node to set the 'metal,ram' chosen node to
+  global StdoutPath:  Option String # name of the DTS node to set the 'stdout-path' chosen node to
 
 global def makeTestProgramPlan name cfiles =
   TestProgramPlan
@@ -52,6 +53,7 @@ global def makeTestProgramPlan name cfiles =
   None
   None
   None
+  (Some "simSerial")
 
 global def testProgramPlanToProgramCompileOptions plan outputDir =
   def name        = plan.getTestProgramPlanName
@@ -64,6 +66,7 @@ global def testProgramPlanToProgramCompileOptions plan outputDir =
   def entry       = plan.getTestProgramPlanEntry
   def rom         = plan.getTestProgramPlanRom
   def ram         = plan.getTestProgramPlanRam
+  def stdoutPath  = plan.getTestProgramPlanStdoutPath
 
   ProgramCompileOptions
   name
@@ -77,6 +80,7 @@ global def testProgramPlanToProgramCompileOptions plan outputDir =
   entry
   rom
   ram
+  stdoutPath
 
 global def testProgramPlanToGCCProgramPlan outputFile plan =
   testProgramPlanToProgramCompileOptions plan "{outputFile}/..".simplify
@@ -93,8 +97,9 @@ tuple ProgramCompileOptions =
   global OutputDir:   String
   global Filter:      DUTProgramCompiler => Boolean
   global Entry:       Option (Pair String Integer)
-  global Rom:         Option String
-  global Ram:         Option String
+  global Rom:         Option String # name of the DTS node to set the 'metal,rom' chosen node to
+  global Ram:         Option String # name of the DTS node to set the 'metal,ram' chosen node to
+  global StdoutPath:  Option String # name of the DTS node to set the 'stdout-path' chosen node to
 
 global def makeProgramCompileOptions name cflags cfiles outputDir =
   def asFlags     = Nil
@@ -104,7 +109,9 @@ global def makeProgramCompileOptions name cflags cfiles outputDir =
   def entry = None
   def rom = None
   def ram = None
-  ProgramCompileOptions name cflags asFlags cfiles includeDirs sources outputDir filter entry rom ram
+  def stdoutPath = None
+
+  ProgramCompileOptions name cflags asFlags cfiles includeDirs sources outputDir filter entry rom ram stdoutPath
 
 global def programCompileOptionsToGCCProgramPlan outputFile plan =
   def name        = plan.getProgramCompileOptionsName
