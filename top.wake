@@ -45,13 +45,49 @@ global def bitstreamTarget board dut buildRoot =
   | setBitstreamPlanTclFiles tclFiles
   | makeBitstream
 
+# A target that can be used with runPlatform to run a suite of simulation tests
+# and return a Result indicating whether or not all tests passed.
 global def simTarget dut buildRoot simName waves =
   def dutTests = subscribe dutTests | filter (_.getDUTTestFilter dut)
-  map (singleSimTarget simName waves dut buildRoot) dutTests
-  | zip dutTests
-  | map getDUTTestName.editPairFirst
-  | aggregateTestResults
-  | println
+  def simOutputs =
+    dutTests
+    | map (
+        \dutTest
+        Pair
+        dutTest.getDUTTestProgram.getTestProgramPlanName
+        (singleSimOutput simName waves dut buildRoot dutTest)
+    )
+
+  def getSimCheckerOptions programName =
+    def filter = (\_ True)
+    def outputDir = buildRoot.getBuildTreeReportDir simName programName
+    makeSimCheckerOptions filter outputDir
+
+  def allPassed =
+    simOutputs
+    | map (
+        \(Pair programName simOutput)
+        simCheckerGetResult dut simChecker simOutput (getSimCheckerOptions programName)
+    )
+    | forall isTestResultPass
+
+  # A multiline string containing a report of test successes and failures.
+  def testReport =
+    simOutputs
+    | map (
+        \(Pair programName simOutput)
+        reportSimulationOutputs simChecker dut simOutput (getSimCheckerOptions programName)
+    )
+    | zip dutTests
+    | map getDUTTestName.editPairFirst
+    | aggregateTestResults
+
+  def _ = println testReport
+
+  if allPassed then
+    Pass "All tests passed"
+  else
+    Fail "Some tests failed"
 
 global def aggregateTestResults pairs =
   pairs
@@ -59,7 +95,7 @@ global def aggregateTestResults pairs =
   | catWith "\n"
   | ("\n===== TEST RESULTS =====\n{_}\n")
 
-global def singleSimTarget simName waves dut buildRoot dutTest =
+def singleSimOutput simName waves dut buildRoot dutTest =
   def programName = dutTest.getDUTTestProgram.getTestProgramPlanName
   def testProgram =
     def testProgramPlan = dutTest.getDUTTestProgram
@@ -90,66 +126,71 @@ global def singleSimTarget simName waves dut buildRoot dutTest =
     def finalLoaderOptions = makeProgramLoaderOptions filter testProgram outputDir
     makeSimBootloaderOptions filter finalLoaderOptions outputDir
 
-  def simChecker =
-    def name = "simultion-test-finisher-checker"
-    def score = (\_ \_ 1.0)
+  simulateDUT dut simulationOptions userSimulationOptions
 
-    def result dut outputs options =
-      def statusFile =
-        def result =
-          def simOutputs = outputs.getSimulationOutputOutputs
-          simOutputs
-          | map getPathResult
-          | findFail
-          | rmap (\_ find (matches `([^/]*/)*status\.log` _.getPathName) simOutputs)
-        match result
-          Pass (Some (Pair f _)) = f
-          Pass (None) = "no status.log file found".makeError.makeBadPath
-          Fail e = e.makeBadPath
+def simChecker =
+  def name = "simultion-test-finisher-checker"
+  def score = (\_ \_ 1.0)
 
-      def checkStatus statusFileContents =
-        def failRegex = `^FAILED with status (.*)$`
-        def passRegex = `^PASSED$`
-        def failStatus =
-          if matches failRegex statusFileContents
-          then (extract failRegex statusFileContents).head
-          else None
-        def passMatch = matches passRegex statusFileContents
-        match failStatus passMatch
-          None          True  = makeTestResultPass statusFileContents
-          None          False = makeTestResultFail statusFileContents None
-          (Some status) _     = makeTestResultFail statusFileContents status.int
+  def result dut outputs options =
+    def statusFile =
+      def result =
+        def simOutputs = outputs.getSimulationOutputOutputs
+        simOutputs
+        | map getPathResult
+        | findFail
+        | rmap (\_ find (matches `([^/]*/)*status\.log` _.getPathName) simOutputs)
+      match result
+        Pass (Some (Pair f _)) = f
+        Pass (None) = "no status.log file found".makeError.makeBadPath
+        Fail e = e.makeBadPath
 
-      def testResult =
-        def statusResult =
-          statusFile
-          | read
-          | rmap checkStatus
-        match statusResult
-          Pass status = status
-          Fail e = makeTestResultFail e.getErrorCause None
-      testResult
+    def checkStatus statusFileContents =
+      def failRegex = `^FAILED with status (.*)$`
+      def passRegex = `^PASSED$`
+      def failStatus =
+        if matches failRegex statusFileContents
+        then (extract failRegex statusFileContents).head
+        else None
+      def passMatch = matches passRegex statusFileContents
+      match failStatus passMatch
+        None          True  = makeTestResultPass statusFileContents
+        None          False = makeTestResultFail statusFileContents None
+        (Some status) _     = makeTestResultFail statusFileContents status.int
 
-    def reporter dut outputs options =
-      def simErr = match outputs.getSimulationOutputStderr
-        Fail e = makeBadPath e
-        Pass contents = write "{options.getSimCheckerOptionsOutputDir}/sim.err" contents
-      def simOut = match outputs.getSimulationOutputStdout
-        Fail e = makeBadPath e
-        Pass contents = write "{options.getSimCheckerOptionsOutputDir}/sim.out" contents
-      match (result dut outputs options)
-        TestFail failed = "FAILED: {failed.getTestFailedMsg}"
-        TestPass passed = passed.getTestPassedMsg
+    def testResult =
+      def statusResult =
+        statusFile
+        | read
+        | rmap checkStatus
+      match statusResult
+        Pass status = status
+        Fail e = makeTestResultFail e.getErrorCause None
+    testResult
 
-    makeSimCheckerPlan name score result reporter
-    | makeSimChecker
+  def reporter dut outputs options =
+    def simErr = match outputs.getSimulationOutputStderr
+      Fail e = makeBadPath e
+      Pass contents = write "{options.getSimCheckerOptionsOutputDir}/sim.err" contents
+    def simOut = match outputs.getSimulationOutputStdout
+      Fail e = makeBadPath e
+      Pass contents = write "{options.getSimCheckerOptionsOutputDir}/sim.out" contents
+    match (result dut outputs options)
+      TestFail failed = "FAILED: {failed.getTestFailedMsg}"
+      TestPass passed = passed.getTestPassedMsg
+
+  makeSimCheckerPlan name score result reporter
+  | makeSimChecker
+
+global def singleSimTarget simName waves dut buildRoot dutTest =
+  def programName = dutTest.getDUTTestProgram.getTestProgramPlanName
 
   def simCheckerOptions =
     def filter = (\_ True)
     def outputDir = buildRoot.getBuildTreeReportDir simName programName
     makeSimCheckerOptions filter outputDir
 
-  simulateDUT dut simulationOptions userSimulationOptions
+  singleSimOutput simName waves dut buildRoot dutTest
   | (reportSimulationOutputs simChecker dut _ simCheckerOptions)
 
 global data Simulator =
