@@ -9,27 +9,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import json5
+import jsonref
 
 PlainJSONType = t.Union[dict, list, t.AnyStr, float, bool]
 JSONType = t.Union[PlainJSONType, t.Iterator[PlainJSONType]]
-
-
-def walk(j_obj: JSONType) -> t.Iterator[JSONType]:
-    """
-    Walk a parsed json object, returning inner nodes.
-    This allows the object to be parse in a pipeline like fashion.
-
-    :param j_obj: The object being parsed, or an iterator
-    :return: an iterator of matching objects
-    """
-    if isinstance(j_obj, dict):
-        yield j_obj
-        for v in j_obj.values():
-            yield from walk(v)
-    elif isinstance(j_obj, (list, t.Iterator)):
-        yield j_obj
-        for j in j_obj:
-            yield from walk(j)
 
 
 @dataclass(frozen=True)
@@ -350,9 +333,9 @@ def generate_metal_dev_drv(vendor, device, index, reglist):
 # Support for parsing duh file
 # ###
 
-def walkfile_j5(f_name: str) -> JSONType:
-    "Returns iterator over named json5 file"
-    return walk(json5.load(open(f_name)))
+def load_json5_with_refs(f_name: str) -> JSONType:
+    with open(f_name) as fp:
+        return jsonref.JsonRef.replace_refs(json5.load(fp))
 
 
 ###
@@ -413,21 +396,15 @@ def main():
     m_dir_path = args.metal_dir
     overwrite_existing = args.overwrite_existing
 
-    duh_info = json5.load(open(args.duh_document))
+    duh_info = load_json5_with_refs(args.duh_document)
 
     # ###
     # process pSchema (in duh document) to create symbol table
     # ###
-    p = walkfile_j5(args.duh_document)
-    p = filter(lambda x: 'pSchema' in x, p)
-    p = map(lambda x: x['pSchema'], p)
-    p = filter(lambda x: 'properties' in x, p)
-    p = map(lambda x: x['properties'], p)
-
-    duh_symbol_table = {}
-
-    for prop in p:
-        duh_symbol_table.update(**prop)
+    if 'pSchema' in duh_info['component']:
+        duh_symbol_table = duh_info['component']['pSchema']['properties']
+    else:
+        duh_symbol_table = {}
 
     # ###
     # process register info from duh
@@ -442,11 +419,12 @@ def main():
             width = duh_symbol_table[width]['default']
         return Register.make_register(name, offset, width)
 
-    p = walk(duh_info)
-    p = filter(lambda x: 'name' in x and x['name'] == 'csrAddressBlock', p)
-    p = map(lambda x: x['registers'], p)
-    p = (j for i in p for j in i)  # flatten
-    reglist: t.List[Register] = list(map(interpret_register, p))
+    reglist: t.List[Register] = [
+        interpret_register(register)
+        for memory_map in duh_info['component'].get('memoryMaps', [])
+        for address_block in memory_map['addressBlocks']
+        for register in address_block.get('registers', [])
+    ]
 
     m_hdr_path = m_dir_path / device
     m_hdr_path.mkdir(exist_ok=True, parents=True)
