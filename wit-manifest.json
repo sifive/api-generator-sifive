@@ -20,7 +20,7 @@
         "source": "git@github.com:sifive/api-languages-sifive.git"
     },
     {
-        "commit": "c9d454d6626e40416aad7426bbf8cbf8faba79db",
+        "commit": "9211909fedb66f9a4172835a9755609f29840401",
         "name": "scribble-testsocket-sifive",
         "source": "git@github.com:sifive/scribble-testsocket-sifive.git"
     }
