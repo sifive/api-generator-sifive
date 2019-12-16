@@ -78,9 +78,15 @@ global def makeGCCProgram plan =
   | setPlanResources plan.getGCCProgramPlanResources
   | runJob
   | getJobOutputs
-  | filter (outputFile.simplify ==~ _.getPathName)
-  | head
-  | getOrElse "gcc: could not find output file: {outputFile}".makeError.makeBadPath
+  | (\outputs (
+    match (outputs | map getPathResult | findFail)
+      Fail e = e.makeBadPath
+      Pass _ =
+        outputs
+        | filter (outputFile.simplify ==~ _.getPathName)
+        | head
+        | getOrElse "gcc: could not find output file: {outputFile}".makeError.makeBadPath
+  ))
 
 global def riscv64UnknownElfObjcopy elf outputFile =
   def name = "riscv64-unknown-elf-objcopy"
