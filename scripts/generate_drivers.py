@@ -16,6 +16,20 @@ JSONType = t.Union[PlainJSONType, t.Iterator[PlainJSONType]]
 
 
 @dataclass(frozen=True)
+class RegisterField:
+    """
+    Description of a bit field within a register.
+    """
+    name: str
+    bit_offset: int  # Bit offset relative to the register containing this field
+    bit_width: int
+
+    @classmethod
+    def make_field(cls, name: str, bit_offset: int, bit_width: int) -> "RegisterField":
+        return cls(name, bit_offset, bit_width)
+
+
+@dataclass(frozen=True)
 class Register:
     """
     Description of memory-mapped control register within a device
@@ -23,15 +37,22 @@ class Register:
     name: str
     offset: int  # in bytes
     width: int  # in bits
+    fields: t.List[RegisterField]
 
-    @staticmethod
-    def make_register(name: str, offset: int, width: int) -> "Register":
+    @classmethod
+    def make_register(
+        cls,
+        name: str,
+        offset: int,
+        width: int,
+        fields: t.List[RegisterField],
+    ) -> "Register":
         if width not in (8, 16, 32, 64):
             raise Exception(f'Invalid register width {width}, for register '
                             f'{name}.\n'
                             f'Width should be not 8, 16, 32, or 64.\n'
                             f'Please fix the register width in DUH document.')
-        return Register(name, offset, width)
+        return cls(name, offset, width, fields)
 
 
 ###
@@ -52,14 +73,18 @@ def generate_vtable_declarations(device_name: str,
     rv = []
 
     for a_reg in reg_list:
-        reg_name = a_reg.name.lower()
-        size = a_reg.width
+        for field in a_reg.fields:
+            reg_name = a_reg.name.lower()
+            field_name = field.name.lower()
+            size = a_reg.width
 
-        write_func = f'    void (*v_{device_name}_{reg_name}_write)(uint32_t * {device_name}_base, uint{size}_t data);'
-        read_func = f'    uint{size}_t (*v_{device_name}_{reg_name}_read)(uint32_t  *{device_name}_base);'
+            func_name_prefix = f'v_{device_name}_{reg_name}_{field_name}'
 
-        rv.append(write_func)
-        rv.append(read_func)
+            write_func = f'    void (*{func_name_prefix}_write)(uint32_t * {device_name}_base, uint{size}_t data);'
+            read_func = f'    uint{size}_t (*{func_name_prefix}_read)(uint32_t  *{device_name}_base);'
+
+            rv.append(write_func)
+            rv.append(read_func)
 
     return '\n'.join(rv)
 
@@ -91,14 +116,17 @@ def generate_protos(device_name: str, reg_list: t.List[Register]) -> str:
     dev_struct = f'const struct metal_{device_name} *{device_name}'
 
     for a_reg in reg_list:
-        reg_name = a_reg.name.lower()
-        size = a_reg.width
+        for field in a_reg.fields:
+            reg_name = a_reg.name.lower()
+            field_name = field.name.lower()
+            size = a_reg.width
 
-        write_func = f'void metal_{device_name}_{reg_name}_write({dev_struct}, uint{size}_t data);'
-        read_func = f'uint{size}_t metal_{device_name}_{reg_name}_read({dev_struct});'
+            func_name_prefix = f'metal_{device_name}_{reg_name}_{field_name}'
+            write_func = f'void {func_name_prefix}_write({dev_struct}, uint{size}_t data);'
+            read_func = f'uint{size}_t {func_name_prefix}_read({dev_struct});'
 
-        rv.append(write_func)
-        rv.append(read_func)
+            rv.append(write_func)
+            rv.append(read_func)
 
     get_device = f'const struct metal_{device_name} *get_metal_{device_name}' \
                  f'(uint8_t index);'
@@ -169,10 +197,43 @@ METAL_DEV_DRV_TMPL = \
     #include <metal/compiler.h>
     #include <metal/io.h>
 
+    // Private utility functions
+
+    // Write data into register field by only changing bits within that field.
+    static inline void write_field(
+        volatile uint32_t *register_base,
+        uint32_t field_offset,
+        uint32_t field_width,
+        uint32_t field_data
+    ) {
+        const uint32_t shifted_field_data = field_data << field_offset;
+        const uint32_t mask = (field_width == 32) ? 0xffffffff : ((1 << field_width) - 1) << field_offset;
+        const uint32_t original_data = *register_base;
+
+        const uint32_t cleared_data = original_data & (~mask);
+        const uint32_t new_data = cleared_data | shifted_field_data;
+
+        *register_base = new_data;
+    }
+
+    // Read data from register field by shifting and masking only that field.
+    static inline uint32_t read_field(
+        volatile uint32_t *register_base,
+        uint32_t field_offset,
+        uint32_t field_width
+    ) {
+        const uint32_t original_data = *register_base;
+        const uint32_t mask = (field_width == 32) ? 0xffffffff : (1 << field_width) - 1;
+        return (original_data >> field_offset) & mask;
+    }
+
+    // Private register field access functions
     ${base_functions}
 
+    // Public register field access functions
     ${metal_functions}
 
+    // Static data
     struct metal_${device} metal_${device}s[${cap_device}_COUNT];
     
     struct metal_${device}* ${device}_tables[${cap_device}_COUNT];
@@ -217,11 +278,15 @@ def generate_def_vtable(device: str, reg_list: t.List[Register]) -> str:
     head = f'metal_{device}s[i].{device}_base = bases[i];'
     rv.append(head)
     for a_reg in reg_list:
-        reg_name = a_reg.name.lower()
-        write_func = f'{" " * 8}metal_{device}s[i].vtable.v_{device}_{reg_name}_write = {device}_{reg_name}_write;'
-        read_func = f'{" " * 8}metal_{device}s[i].vtable.v_{device}_{reg_name}_read = {device}_{reg_name}_read;'
-        rv.append(write_func)
-        rv.append(read_func)
+        for field in a_reg.fields:
+            reg_name = a_reg.name.lower()
+            field_name = field.name.lower()
+            vtable_prefix = f'v_{device}_{reg_name}_{field_name}'
+            base_func_prefix = f'{device}_{reg_name}_{field_name}'
+            write_func = f'{" " * 8}metal_{device}s[i].vtable.{vtable_prefix}_write = {base_func_prefix}_write;'
+            read_func = f'{" " * 8}metal_{device}s[i].vtable.{vtable_prefix}_read = {base_func_prefix}_read;'
+            rv.append(write_func)
+            rv.append(read_func)
 
     return '\n'.join(rv)
 
@@ -239,29 +304,50 @@ def generate_base_functions(device: str, reg_list: t.List[Register]) -> str:
     rv: t.List[str] = []
 
     for a_reg in reg_list:
-        name = a_reg.name.lower()
-        cap_name = a_reg.name.upper()
-        size = a_reg.width
+        for field in a_reg.fields:
+            name = a_reg.name.lower()
+            cap_name = a_reg.name.upper()
+            field_name = field.name.lower()
+            cap_field_name = field.name.upper()
+            size = a_reg.width
 
-        write_func = f"""
-            void {device}_{name}_write(uint32_t *{device}_base, uint{size}_t data)
-            {{
-                volatile uint32_t *control_base = {device}_base;
-                METAL_{cap_device}_REGW(METAL_{cap_device}_{cap_name}) = data;
-            }}
-            """
+            # Compute actual register offset by assuming 32-bit registers,
+            # since the existing header macros do not directly tell you the
+            # offset of the registers.
 
-        rv.append(textwrap.dedent(write_func))
+            macro_prefix = f"{cap_device}_REGISTER_{cap_name}_{cap_field_name}"
 
-        read_func = f"""
-            uint{size}_t {device}_{name}_read(uint32_t *{device}_base)
-            {{
-                volatile uint32_t *control_base = {device}_base;
-                return METAL_{cap_device}_REGW(METAL_{cap_device}_{cap_name});
-            }}
-            """
+            # Bit offset of field relative to base of device register block
+            field_bit_offset_from_base = macro_prefix
 
-        rv.append(textwrap.dedent(read_func))
+            # Byte offset of register relative to base of device register block
+            reg_byte_offset = f"(({field_bit_offset_from_base} / 32) * 4)"
+
+            # Bit offset of field relative to base of register
+            field_bit_offset_from_register = f"({field_bit_offset_from_base} % 32)"
+            field_width = f"{macro_prefix}_WIDTH"
+
+            write_func = f"""
+                void {device}_{name}_{field_name}_write(uint32_t *{device}_base, uint{size}_t data)
+                {{
+                    uintptr_t control_base = (uintptr_t){device}_base;
+                    volatile uint32_t *register_base = (uint32_t *)(control_base + {reg_byte_offset});
+                    write_field(register_base, {field_bit_offset_from_register}, {field_width}, data);
+                }}
+                """
+
+            rv.append(textwrap.dedent(write_func))
+
+            read_func = f"""
+                uint{size}_t {device}_{name}_{field_name}_read(uint32_t *{device}_base)
+                {{
+                    uintptr_t control_base = (uintptr_t){device}_base;
+                    volatile uint32_t *register_base = (uint32_t *)(control_base + {reg_byte_offset});
+                    return read_field(register_base, {field_bit_offset_from_register}, {field_width});
+                }}
+                """
+
+            rv.append(textwrap.dedent(read_func))
 
     return '\n'.join(rv)
 
@@ -279,28 +365,30 @@ def generate_metal_function(device: str, reg_list: t.List[Register]) -> str:
     rv: t.List[str] = []
 
     for a_reg in reg_list:
-        name = a_reg.name.lower()
-        size = a_reg.width
+        for field in a_reg.fields:
+            name = a_reg.name.lower()
+            field_name = field.name.lower()
+            size = a_reg.width
 
-        write_func = f"""
-            void metal_{device}_{name}_write(const struct metal_{device} *{device}, uint{size}_t data)
-            {{
-                if ({device} != NULL)
-                    {device}->vtable.v_{device}_{name}_write({device}->{device}_base, data);
-            }}
-            """
-        rv.append(textwrap.dedent(write_func))
+            write_func = f"""
+                void metal_{device}_{name}_{field_name}_write(const struct metal_{device} *{device}, uint{size}_t data)
+                {{
+                    if ({device} != NULL)
+                        {device}->vtable.v_{device}_{name}_{field_name}_write({device}->{device}_base, data);
+                }}
+                """
+            rv.append(textwrap.dedent(write_func))
 
-        read_func = f"""
-            uint{size}_t metal_{device}_{name}_read(const struct metal_{device} *{device})
-            {{
-                if ({device} != NULL)
-                    return {device}->vtable.v_{device}_{name}_read({device}->{device}_base);
-                return (uint{size}_t)-1;
-            }}
-            """
+            read_func = f"""
+                uint{size}_t metal_{device}_{name}_{field_name}_read(const struct metal_{device} *{device})
+                {{
+                    if ({device} != NULL)
+                        return {device}->vtable.v_{device}_{name}_{field_name}_read({device}->{device}_base);
+                    return (uint{size}_t)-1;
+                }}
+                """
 
-        rv.append(textwrap.dedent(read_func))
+            rv.append(textwrap.dedent(read_func))
 
     return '\n'.join(rv)
 
@@ -409,15 +497,30 @@ def main():
     # ###
     # process register info from duh
     # ###
+    def interpret_register_field(a_reg_field: dict) -> RegisterField:
+        try:
+            name = a_reg_field["name"]
+        except KeyError:
+            raise Exception(f"Missing required register field property 'name': {a_reg_field}")
+        bit_offset = a_reg_field["bitOffset"]
+        bit_width = a_reg_field["bitWidth"]
+        if isinstance(bit_offset, str):
+            bit_offset = duh_symbol_table[bit_offset]['default']
+        if isinstance(bit_width, str):
+            bit_width = duh_symbol_table[bit_width]['default']
+        return RegisterField.make_field(name, bit_offset, bit_width)
+
     def interpret_register(a_reg: dict) -> Register:
         name = a_reg['name']
-        offset = a_reg['addressOffset'] // 8
+        offset = a_reg['addressOffset']
         width = a_reg['size']
+        fields = a_reg.get('fields', [])
         if isinstance(offset, str):
             offset = duh_symbol_table[offset]['default']
         if isinstance(width, str):
             width = duh_symbol_table[width]['default']
-        return Register.make_register(name, offset, width)
+        interpreted_fields = [interpret_register_field(field) for field in fields]
+        return Register.make_register(name, offset, width, interpreted_fields)
 
     reglist: t.List[Register] = [
         interpret_register(register)
