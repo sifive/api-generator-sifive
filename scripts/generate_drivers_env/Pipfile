@@ -7,6 +7,7 @@ verify_ssl = true
 
 [packages]
 json5 = "*"
+jsonref = "*"
 
 [requires]
 python_version = "3.7"
