@@ -34,6 +34,7 @@ global def bitstreamTarget board dut buildRoot =
   def resources =
     subscribe vivadoBlackBoxResources
     | mapPartial (_ dut)
+    | map (sortBy (_<*_))
     | flatten
 
   def topModule = dut.getDUTTopModule
