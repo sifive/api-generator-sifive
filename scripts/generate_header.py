@@ -97,7 +97,7 @@ class DeviceBase:
     """
     name: str
     index: int
-    base_interrupt: int
+    base_interrupt: t.Optional[int]
     base_address: int
     interrupts: t.List[Interrupt]
     registers: t.List[RegisterField]
@@ -212,7 +212,8 @@ def generate_interrupt_defines(bases: t.List[DeviceBase],
         generic_interrupts = bases[0].interrupts
         int_base = "#define ABSOLUTE_INTERRUPT(base, relative) ((base) + (relative))"
 
-        int_bases = ','.join(str(i.base_interrupt) for i in bases)
+        int_bases = ','.join(str(i.base_interrupt)
+                             for i in bases if i.base_interrupt)
 
         rv.append(textwrap.dedent(int_base))
         rv.append(f'#define {dev}_INTERRUPT_BASES {{ {int_bases} }}')
@@ -409,7 +410,7 @@ def main() -> int:
     for index, dev_om in devices_om:
         reglist = find_registers(dev_om)
         intlist = find_interrupts(dev_om, device)
-        base_int = min(i.number for i in intlist)
+        base_int = min((i.number for i in intlist), default=None)
         base_address = dev_om['memoryRegions'][0]['addressSets'][0]['base']
 
         devlist.append(DeviceBase(name=device,
