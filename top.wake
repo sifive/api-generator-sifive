@@ -31,6 +31,11 @@ global def bitstreamTarget board dut buildRoot =
     | map (_ Unit)
     | flatten
     | (dut.getDUTVsrcs ++ _)
+  def resources =
+    subscribe vivadoBlackBoxResources
+    | mapPartial (_ dut)
+    | map (sortBy (_<*_))
+    | flatten
 
   def topModule = dut.getDUTTopModule
 
@@ -41,6 +46,7 @@ global def bitstreamTarget board dut buildRoot =
 
   makeBitstreamPlan name vendor board topModule buildRoot.getBuildTreeMCSDir
   | setBitstreamPlanVsrcs vsrcs
+  | editBitstreamPlanResources(resources ++ _)
   | setBitstreamPlanVisibleFiles visibleFiles
   | setBitstreamPlanTclFiles tclFiles
   | makeBitstream
