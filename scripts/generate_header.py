@@ -244,7 +244,8 @@ def generate_base_hdr(vendor: str,
     """
     template = string.Template(textwrap.dedent(METAL_BASE_HDR_TMPL))
 
-    base = ", ".join(hex(i.base_address) for i in devlist)
+    base = ", ".join(hex(i.base_address) + 'ULL' for i in devlist)
+
     interrupts = generate_interrupt_defines(devlist, device)
 
     return template.substitute(
