@@ -104,6 +104,7 @@ def doRocketGenerate dutPlan userArgs =
   def testharness = dutPlan.getRocketChipDUTPlanTestharness
 
   makeRocketChipGeneratorOptions jars firrtlDir testharness configs
+  | setRocketChipGeneratorOptionsBaseFileName (Some dutPlan.getRocketChipDUTPlanName)
   | runRocketChipGenerator
 
 def doVLSIROMGen dutPlan userArgs rocketOutputs =
