@@ -92,7 +92,7 @@ int main(int argc, char **argv, char **env) {
     main_time++;            // Time passes...
 #if VM_TRACE == 1
     if (tfp) {
-      tfp->dump(main_time);
+      tfp->dump((vluint64_t) main_time);
     }
 #endif // VM_TRACE
   }
