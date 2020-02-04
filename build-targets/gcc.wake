@@ -1,0 +1,125 @@
+def jHost = jOneOf (
+  jMap (_, Nil) jString,
+  jNestedArrayMap jString,
+  Nil
+)
+
+global def gccBuildTarget =
+  baseBuildTargetPlan "gcc"
+  | dependsOnFn "sources" jNestedArrayMap
+  | dependsOnOption "outputFile" jString
+  | dependsOnOption "cflags" (jNestedArrayMap jString)
+  | dependsOnOption "asflags" (jNestedArrayMap jString)
+  | dependsOnOption "ldflags" (jNestedArrayMap jString)
+  | dependsOnOptionFn "linkerScript" (_)
+  | dependsOnOption "includeDirs" (jNestedArrayMap jString)
+  | dependsOnOption "libraryDirs" (jNestedArrayMap jString)
+  | dependsOnOptionFn "specsFiles" jNestedArrayMap
+  | dependsOnOption "host" jHost
+  | dependsOnOption "resources" (jNestedArrayMap jString)
+  | dependsOnOptionFn "visible" jNestedArrayMap
+  | definedAs (
+    \sourceFiles
+    \outputFileOpt
+    \cflagsOpt
+    \asflagsOpt
+    \ldflagsOpt
+    \linkerScriptOpt
+    \includeDirsOpt
+    \libraryDirsOpt
+    \specsFilesOpt
+    \hostOpt
+    \resources
+    \visibleOpt
+    \buildInputs
+    match buildInputs.getBuildTargetInputsOutputDir
+      None = Fail "outputDir required for gcc build target".makeError
+      Some outputDir =
+        def runDir = outputDir
+        def cmdline =
+          def host = match hostOpt
+            None = "gcc", Nil
+            Some host = host
+          def cflags = match cflagsOpt
+            None = Nil
+            Some flags = flags
+          def incflags = match includeDirsOpt
+            None = Nil
+            Some includeDirs = map ("-I{relative runDir _}") includeDirs
+          def libflags = match libraryDirsOpt
+            None = Nil
+            Some libDirs = map ("-L{relative runDir _}") libDirs
+          def asflags = match asflagsOpt
+            None = Nil
+            Some flags = map ("-Wa,{_}") flags
+          def ldscriptFlags = match linkerScriptOpt
+            None = Nil
+            Some ldscript = "-T{relative runDir ldscript.getPathName}", Nil
+          def ldflags = match ldflagsOpt
+            None = Nil
+            Some flags = ("-Wl,--start-group", flags) ++ ("-Wl,--end-group", Nil)
+          def specsFlags = match specsFilesOpt
+            None = Nil
+            Some specsFiles = map ("-specs={relative runDir _.getPathName}") specsFiles
+          def fileArgs = map (relative runDir _.getPathName) sourceFiles
+          def outputFile = match outputFileOpt
+            None = Nil
+            Some file = "-o", file, Nil
+          host
+          ++ cflags
+          ++ incflags
+          ++ libflags
+          ++ asflags
+          ++ ldscriptFlags
+          ++ ldflags
+          ++ specsFlags
+          ++ fileArgs
+          ++ outputFile
+        def inputs =
+          def ldscriptInputs = match linkerScriptOpt
+            None = Nil
+            Some ldscript = ldscript, Nil
+          def specsInputs = getOrElse Nil specsFilesOpt
+          def visible = getOrElse Nil visibleOpt
+          def outputDirs = match outputFileOpt
+            None = Nil
+            Some file = mkdir "{outputDir}/{file}".simplify, Nil
+          sourceFiles
+          ++ ldscriptInputs
+          ++ specsInputs
+          ++ visible
+          ++ outputDirs
+        def gcc =
+          makePlan cmdline inputs
+          | setPlanResources (getOrElse Nil resources)
+          | runJob
+        def outputs = gcc.getJobOutputs
+        outputs
+        | findFailFn getPathResult
+        | rmap (\_ (
+          def objectFilesField =
+            outputs
+            | filter (matches `.*\.o` _.getPathName)
+            | map bPath
+            | ("objectFiles" → bArray _)
+          def assemblerFilesField =
+            outputs
+            | filter (matches `.*\.s` _.getPathName)
+            | map bPath
+            | ("assemblerFiles" → bArray _)
+          def outputFileField = match outputFileOpt
+            None = Nil
+            Some file =
+              def filename = simplify "{outputDir}/{file}"
+              outputs
+              | find (_.getPathName ==* filename)
+              | omap (file → bPath _.getPairFirst, Nil)
+              | getOrElse Nil
+          bObject (
+            objectFilesField,
+            assemblerFilesField,
+            outputFileField
+          )
+        ))
+  )
+  | exports (_)

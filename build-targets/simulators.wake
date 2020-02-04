@@ -1,0 +1,219 @@
+def defaultStderrTail = 5000
+def defaultStdoutTail = 5000
+
+def jEncodeError error = JObject (
+  "cause" → JString error.getErrorCause,
+  "stack" → JArray (map JString error.getErrorStack),
+  Nil
+)
+
+def jError jvalue =
+  jMap2
+  Error
+  (jField "cause" jString)
+  (jField "stack" (jArrayMap jString))
+
+def jEncodeStatus status = match status
+  Exited   code = JObject ("exited" → JInteger code, Nil)
+  Signaled code = JObject ("signaled" → JInteger code, Nil)
+  Aborted  error = JObject ("aborted" → jEncodeError error, Nil)
+
+tuple Simulator =
+  BaseCommand: List String
+  Inputs: List Path
+
+global def makeSimRunBuildTarget name simulatorFn =
+  baseBuildTargetPlan name
+  | simulatorFn
+  | dependsOnOption "extraArgs" (jNestedArrayMap jString)
+  | dependsOnOptionFn "plusargs" jNamedArgs
+  | dependsOnOptionFn "visible" jNestedArrayMap
+  | dependsOnOption "resources" (jNestedArrayMap jString)
+  | dependsOnOption "stderrTailNum" jInteger
+  | dependsOnOption "stdoutTailNum" jInteger
+  | definedAs (
+    \simulator
+    \extraArgs
+    \rawPlusargs
+    \visible
+    \resources
+    \stderrTailNum
+    \stdoutTailNum
+    \buildInputs
+
+    match buildInputs.getBuildTargetInputsOutputDir
+      None = Fail "outputDir required for verilator build target".makeError
+      Some outputDir =
+        def wrapperScript = source "api-generator-sifive/scripts/redirect_wrapper"
+        def inputs = wrapperScript, mkdir outputDir, simulator.getSimulatorInputs ++ (getOrElse Nil visible)
+        def stderrFile = "{outputDir}/sim.err"
+        def stdoutFile = "{outputDir}/sim.out"
+
+        def cmdline =
+          def plusargs =
+            rawPlusargs
+            | getOrElse Nil
+            | namedArgsToCmdline outputDir "+" "="
+          relative outputDir wrapperScript.getPathName,
+          relative outputDir stdoutFile,
+          relative outputDir stderrFile,
+          str (getOrElse defaultStderrTail stderrTailNum),
+          str (getOrElse defaultStderrTail stdoutTailNum),
+          (
+            simulator.getSimulatorBaseCommand
+            ++ (getOrElse Nil extraArgs)
+            ++ plusargs
+          )
+
+        def job =
+          makePlan cmdline inputs
+          | setPlanDirectory outputDir
+          | setPlanResources (getOrElse Nil resources)
+          | runJob
+
+        def getResults =
+          rMapBegin
+          | rMapAdd getJobStdout
+          | rMapAdd getJobStderr
+          | rMapAdd (
+            _
+            | getJobOutputs
+            | findFailFn getPathResult
+          )
+          | rMapEnd (\stdout \stderr \outputs bObject (
+            "outputs" → bArray (map bPath outputs),
+            "status" → bJValue (jEncodeStatus job.getJobStatus),
+            "stdout" → bJValue (JString stdout),
+            "stderr" → bJValue (JString stderr),
+            Nil
+          ))
+
+        getResults job
+  )
+  | exports (_)
+  | makeBuildTarget
+
+
+publish buildTargets =
+  verilatorBuildTarget,
+  verilatorRunBuildTarget,
+  vcsBuildTarget,
+  simvBuildTarget,
+  Nil
+
+global def verilatorBuildTarget =
+  baseBuildTargetPlan "verilator"
+  | dependsOnFn "main" (_)
+  | dependsOn "topModule" jString
+  | dependsOnOption "prefix" jString
+  | dependsOnFn "vsrcs" jNestedArrayMap
+  | dependsOn "includeDirs" (jNestedArrayMap jString)
+  | dependsOnFn "defines" jNamedArgs
+  | dependsOnFn "plusargs" jNamedArgs
+  | dependsOn "extraArgs" (jNestedArrayMap jString)
+  | dependsOnOptionFn "visible" jNestedArrayMap
+  | dependsOnOption "resources" (jNestedArrayMap jString)
+  | definedAs (
+    \main
+    \topModule
+    \prefix
+    \vsrcs
+    \includeDirs
+    \defines
+    \plusargs
+    \extraArgs
+    \visible
+    \resources
+    \buildInputs
+    match buildInputs.getBuildTargetInputsOutputDir
+      None = Fail "outputDir required for verilator build target".makeError
+      Some outputDir =
+        def verilator =
+          makeVerilatorCompilePlan vsrcs main topModule outputDir
+          | setVerilatorCompilePlanPlusargs plusargs
+          | setVerilatorCompilePlanIncludeDirs includeDirs
+          | setVerilatorCompilePlanDefines defines
+          | setVerilatorCompilePlanPrefix (getOrElse "V{topModule}" prefix)
+          | setVerilatorCompilePlanResources (getOrElse defaultVerilatorResources resources)
+          | setVerilatorCompilePlanVisible (getOrElse Nil visible)
+          | runVerilator
+        verilator
+        | getVerilatorOutputsAllOutputs
+        | findFailFn getPathResult
+        | rmap (\_ verilator)
+  )
+  | exports (\verilator bObject (
+    "outputs" → bArray (map bPath verilator.getVerilatorOutputsAllOutputs),
+    "makefile" → bPath verilator.getVerilatorOutputsMakefile,
+    Nil
+  ))
+  | makeBuildTarget
+
+global def verilatorRunBuildTarget =
+  makeSimRunBuildTarget "verilator-run" (dependsOnFn "executable" (
+    \jPath
+    jMap (
+      \executable
+      Simulator
+      (executable.getPathName, Nil)
+      (executable, Nil)
+    )
+    (jField "simv" jPath)
+  ))
+
+global def vcsBuildTarget =
+  baseBuildTargetPlan "vcs-compile"
+  | dependsOnFn "vsrcs" jNestedArrayMap
+  | dependsOn "includeDirs" (jNestedArrayMap jString)
+  | dependsOnFn "defines" jNamedArgs
+  | dependsOnFn "plusargs" jNamedArgs
+  | dependsOnFn "extraArgs" jNamedArgs
+  | dependsOnOption "tmpDir" jString
+  | dependsOnOptionFn "visible" jNestedArrayMap
+  | dependsOnOption "resources" (jNestedArrayMap jString)
+  | definedAs (
+    \vsrcs
+    \includeDirs
+    \defines
+    \plusargs
+    \extraArgs
+    \tmpDir
+    \visible
+    \resources
+    \buildInputs
+    match buildInputs.getBuildTargetInputsOutputDir
+      None = Fail "outputDir required for vcs build target".makeError
+      Some outputDir =
+        def vcs =
+          makeVCSCompilePlan vsrcs outputDir
+          | setVCSCompilePlanSourceFiles vsrcs
+          | setVCSCompilePlanIncludeDirs includeDirs
+          | setVCSCompilePlanDefines defines
+          | setVCSCompilePlanPlusargs plusargs
+          | setVCSCompilePlanExtraArgs extraArgs
+          | setVCSCompilePlanVisible (getOrElse Nil visible)
+          | setVCSCompilePlanResources (getOrElse defaultVCSResources resources)
+          | doVCSCompile
+        vcs
+        | getVCSCompileOutputsAllOutputs
+        | findFailFn getPathResult
+        | rmap (\_ vcs)
+  )
+  | exports (\vcs bObject (
+    "outputs" → bArray (map bPath vcs.getVCSCompileOutputsAllOutputs),
+    "simv" → bPath vcs.getVCSCompileOutputsSimv,
+    Nil
+  ))
+  | makeBuildTarget
+
+global def simvBuildTarget =
+  makeSimRunBuildTarget "vcs-run" (dependsOnFn "simv" (
+    \jPath
+    jMap (
+      \simv
+      Simulator
+      (simv.getPathName, Nil)
+      (simv, Nil)
+    )
+    (jField "simv" jPath)
+  ))

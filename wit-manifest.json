@@ -23,5 +23,10 @@
         "commit": "c675ef819c022a4871bc7a4db8e40018dd188ea2",
         "name": "scribble-testsocket-sifive",
         "source": "git@github.com:sifive/scribble-testsocket-sifive.git"
+    },
+    {
+        "commit": "d9e9542f6860d9e96e457ac679b8326c164d3dd2",
+        "name": "api-buildtarget-sifive",
+        "source": "git@github.com:sifive/api-buildtarget-sifive.git"
     }
 ]

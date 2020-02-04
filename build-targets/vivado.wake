@@ -1,0 +1,212 @@
+def jNamedArgObject jPath =
+  jObjectMap (jAnyOf (
+    jMap NamedArgString.flip jString,
+    jMap NamedArgInteger.flip jInteger,
+    jMap NamedArgDouble.flip jDouble,
+    jMap NamedArgPath.flip jPath,
+    Nil
+  ))
+  | jMap (map (\(Pair name fn) fn name))
+
+global def jNamedArgs jPath =
+  jMap flatten (jNestedArrayMap (jOneOf (
+    jMap (NamedArg _, Nil) jString,
+    jNamedArgObject jPath,
+    Nil
+  )))
+
+tuple NamedArgSerializer =
+  global StringFn:  (name: String) => (value: String)  => List String
+  global IntegerFn: (name: String) => (value: Integer) => List String
+  global PathFn:    (name: String) => (value: Path)    => List String
+  global DoubleFn:  (name: String) => (value: Double)  => List String
+  global Fn:        (name: String) => List String
+
+global def makeNamedArgSerializer =
+  NamedArgSerializer
+  (\name \value name, value, Nil)
+  (\name \value name, str value, Nil)
+  (\name \value name, value.getPathName, Nil)
+  (\name \value name, dstr value, Nil)
+  (\name name, Nil)
+
+global def getNamedArgPath namedArg = match namedArg
+  NamedArgPath _ path = Some path
+  _ = None
+
+global def getNamedArgsPaths namedArgs =
+  mapPartial getNamedArgPath namedArgs
+
+global def serializeNamedArgs plan namedArgs =
+  def fn namedArg = match namedArg
+    NamedArg name = plan.getNamedArgSerializerFn name
+    NamedArgInteger name value = plan.getNamedArgSerializerIntegerFn name value
+    NamedArgDouble name value = plan.getNamedArgSerializerDoubleFn name value
+    NamedArgString name value = plan.getNamedArgSerializerStringFn name value
+    NamedArgPath name value = plan.getNamedArgSerializerPathFn name value
+  mapFlat fn namedArgs
+
+publish buildTargets =
+  vivadoBuildTarget,
+  vivadoBitstreamBuildTarget,
+  vivadoMCSBuildTarget,
+  Nil
+
+def vivadoBuildTarget =
+  baseBuildTargetPlan "vivado"
+  | dependsOnFn "source" (_)
+  | dependsOnOption "resources" (jNestedArrayMap jString)
+  | dependsOnOption "noJournal" jBoolean
+  | dependsOnOptionFn "tclArgs" jNamedArgs
+  | dependsOnOption "homeDir" jString
+  | dependsOnOptionFn "visibleFiles" (jNestedArrayMap _)
+  | dependsOnOption "outputs" (jObjectMap jString)
+  | definedAs (
+    \sourceTcl
+    \resources
+    \noJournal
+    \namedTclArgs
+    \homeDir
+    \rawVisibleFiles
+    \expectedOutputs
+    \buildInputs
+    match buildInputs.getBuildTargetInputsOutputDir
+      None = Fail "outputDir required for vivado build target".makeError
+      Some outputDir =
+        def visibleFiles =
+          def tclPaths =
+            namedTclArgs
+            | getOrElse Nil
+            | getNamedArgsPaths
+          tclPaths ++ getOrElse Nil rawVisibleFiles
+        def tclArgs =
+          def serializeFn =
+            makeNamedArgSerializer
+            | setNamedArgSerializerPathFn (
+              \name \value
+              name, relative outputDir value.getPathName, Nil
+            )
+          omap (serializeNamedArgs serializeFn) namedTclArgs
+        def vivado =
+          makeVivadoPlan sourceTcl outputDir
+          | setVivadoPlanResources (getOrElse Nil resources)
+          | setVivadoPlanNoJournal (getOrElse True noJournal)
+          | setVivadoPlanTclArgs (getOrElse Nil tclArgs)
+          | setVivadoPlanHomeDir (getOrElse "{outputDir}/home" homeDir)
+          | setVivadoPlanVisibleFiles visibleFiles
+          | setVivadoPlanFnOutputs (_)
+          | runVivado
+        def outputs = vivado.getVivadoOutputAllOutputs
+        def withOutputs =
+          def getOutputPath (Pair name filename) =
+            outputs
+            | filter ("{outputDir.simplify}/{filename.simplify}" ==* _.getPathName)
+            | head
+            | omap (name → bPath _)
+            | getOrFail "required vivado output file '{filename}' not found".makeError
+          expectedOutputs
+          | getOrElse Nil
+          | findFailFn getOutputPath
+          | rmap (vivado → _)
+        outputs
+        | findFailFn getPathResult
+        | rmapPass (\_ withOutputs)
+  )
+  | exports (\(Pair vivado outputs) bObject (
+    "allOutputs" → bArray (map bPath vivado.getVivadoOutputAllOutputs),
+    "outputs" → bObject outputs,
+    Nil
+  ))
+  | makeBuildTarget
+
+def vivadoBitstreamBuildTarget =
+  baseBuildTargetPlan "vivadoBitstream"
+  | dependsOn "board" jString
+  | dependsOn "topModule" jString
+  | dependsOnOptionFn "tclFiles" jNestedArrayMap
+  | dependsOnOptionFn "vsrcs" jNestedArrayMap
+  | dependsOnOption "resources" (jNestedArrayMap jString)
+  | dependsOnOptionFn "visibleFiles" jNestedArrayMap
+  | definedAs (
+    \board
+    \topModule
+    \tclFiles
+    \vsrcs
+    \resources
+    \visibleFiles
+    \buildInputs
+    match buildInputs.getBuildTargetInputsOutputDir
+      None = Fail "outputDir required for vivado bitstream build target".makeError
+      Some outputDir =
+        def vendor = "xilinx"
+        def bitstream =
+          makeBitstreamPlan "" vendor board topModule outputDir
+          | setBitstreamPlanTclFiles (getOrElse Nil tclFiles)
+          | setBitstreamPlanVsrcs (getOrElse Nil vsrcs)
+          | setBitstreamPlanResources (getOrElse Nil resources)
+          | setBitstreamPlanVisibleFiles (getOrElse Nil visibleFiles)
+          | makeBitstream
+        bitstream
+        | getBitstreamOutputsAllOutputs
+        | findFailFn getPathResult
+        | rmap (\_ bitstream)
+  )
+  | exports (\bitstream bObject (
+    "allOutputs" → bArray (map bPath bitstream.getBitstreamOutputsAllOutputs),
+    "bitstream" → bPath bitstream.getBitstreamOutputsBitstream,
+    Nil
+  ))
+  | makeBuildTarget
+
+def vivadoMCSBuildTarget =
+  baseBuildTargetPlan "vivadoMCS"
+  | dependsOnFn "bitstream" (_)
+  | dependsOn "mcsFilename" jString
+  | dependsOn "board" jString
+  | dependsOnOptionFn "programImage" (_)
+  | dependsOnOption "resources" (jNestedArrayMap jString)
+  | definedAs (
+    \bitstream
+    \mcsFilename
+    \board
+    \programImage
+    \resources
+    \buildInputs
+    match buildInputs.getBuildTargetInputsOutputDir
+      None = Fail "outputDir required for vivado bitstream build target".makeError
+      Some outputDir =
+        def outputFile = "{outputDir}/{mcsFilename}".simplify
+        def programImgList =
+          programImage
+          | omap (_, Nil)
+          | getOrElse Nil
+        def vendor = "xilinx"
+        def sourceTcl = source "fpga-shells/{vendor}/common/tcl/write_cfgmem.tcl"
+        def tclArgs =
+          board,
+          relative outputDir outputFile,
+          relative outputDir bitstream.getPathName,
+          map (relative outputDir _.getPathName) programImgList
+
+        def tclSupportFiles =
+          (sources "fpga-shells/{vendor}/{board}/tcl" `.*\.tcl`)
+          ++ (sources "fpga-shells/{vendor}/common/tcl" `.*\.tcl`)
+
+        def vivadoMCS =
+          makeVivadoPlan sourceTcl outputDir
+          | setVivadoPlanTclArgs tclArgs
+          | setVivadoPlanFnOutputs (\_ outputFile, Nil)
+          | setVivadoPlanResources (getOrElse Nil resources)
+          | setVivadoPlanVisibleFiles (outputDir.mkdir, bitstream, programImgList ++ tclSupportFiles)
+          | runVivado
+        vivadoMCS
+        | getVivadoOutputAllOutputs
+        | head
+        | getOrFail "vivado MCS returned no outputs".makeError
+        | rmapPass getPathResult
+  )
+  | exports (\mcs bObject (
+    "mcs" → bPath mcs,
+    Nil
+  ))
+  | makeBuildTarget
