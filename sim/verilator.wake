@@ -8,6 +8,7 @@ tuple VerilatorCompilePlan =
   global Main:          Path
   global Prefix:        String
   global TopModule:     String
+  global Visible:       List Path
   global Resources:     List String
   global OutputDir:     String
 
@@ -24,6 +25,7 @@ global def makeVerilatorCompilePlan sourceFiles main topModule outputDir =
   main           # Main
   "V{topModule}" # Prefix
   topModule      # TopModule
+  Nil            # Visible
   defaultVerilatorResources # Resources
   outputDir      # OutputDir
 
@@ -64,43 +66,67 @@ def compileCmdlineArgs options =
   ++ main
 
 def compileInputs options =
-  def outputDir    = options.getVerilatorCompilePlanOutputDir
-  def includeDirs  = options.getVerilatorCompilePlanIncludeDirs
-  def srcFiles     = options.getVerilatorCompilePlanSourceFiles
-
+  def outputDir = options.getVerilatorCompilePlanOutputDir
+  def includeDirs = options.getVerilatorCompilePlanIncludeDirs
+  def srcFiles = options.getVerilatorCompilePlanSourceFiles
+  def visible = options.getVerilatorCompilePlanVisible
   def includeSources = map (sources _ `.*`) includeDirs | flatten
 
-  source verilatorWrapperScript, mkdir outputDir, includeSources ++ srcFiles# ++ includeDirs
+  source verilatorWrapperScript, mkdir outputDir, includeSources ++ srcFiles ++ visible
 
-global def doVerilatorCompile options =
+def filterVerilatorOutputs all =
+  filter (\f !matches `.*\.(d|dat|tree|dot|a)` f) all
+
+global def runVerilator options =
   def cmdline = options.compileCmdlineArgs
   def inputs = options.compileInputs
   def verilatorJob =
     makePlan cmdline inputs
-    | editPlanFnOutputs (_ _ | filterOutputs)
+    | editPlanFnOutputs (_ _ | filterVerilatorOutputs)
     | setPlanResources options.getVerilatorCompilePlanResources
     | runJob
   def verilatorOutputs = verilatorJob.getJobOutputs
 
   def outputDir = options.getVerilatorCompilePlanOutputDir
+  def makefile = match (findFailFn getPathResult verilatorOutputs)
+    Pass _ =
+      def verilatorPrefix = options.getVerilatorCompilePlanPrefix
+      def filename = "{outputDir}/{verilatorPrefix}.mk"
+      verilatorOutputs
+      | find (_.getPathName ==* filename)
+      | omap getPairFirst
+      | getOrElse "{filename} not found".makeError.makeBadPath
+    Fail e = makeBadPath e
+  VerilatorOutputs verilatorOutputs makefile options verilatorJob
+
+tuple VerilatorOutputs =
+  AllOutputs_: List Path
+  Makefile_: Path
+  Plan_: VerilatorCompilePlan
+  Job_: Job
+
+global def getVerilatorOutputsAllOutputs = getVerilatorOutputsAllOutputs_
+global def getVerilatorOutputsMakefile = getVerilatorOutputsMakefile_
+global def getVerilatorOutputsPlan = getVerilatorOutputsPlan_
+global def getVerilatorOutputsJob = getVerilatorOutputsJob_
+
+global def doVerilatorCompile options =
+  def vOutputs = runVerilator options
+  def outputDir = options.getVerilatorCompilePlanOutputDir
   def makeCmd =
     def verilatorPrefix = options.getVerilatorCompilePlanPrefix
-    def makeFileName = "{outputDir}/{verilatorPrefix}.mk"
+    def makeFileName = vOutputs.getVerilatorOutputsMakefile.getPathName
     "make",
     "--directory={outputDir}",
     "--makefile={relative outputDir makeFileName}",
     namedArgsToCmdline outputDir "" "" options.getVerilatorCompilePlanMakeArgs
-  def makeSources = options.getVerilatorCompilePlanMain, verilatorOutputs
+  def makeSources = options.getVerilatorCompilePlanMain, vOutputs.getVerilatorOutputsAllOutputs
   def makeJob =
     makePlan makeCmd (mkdir outputDir, makeSources)
     | setPlanResources options.getVerilatorCompilePlanResources
-    | editPlanFnOutputs (_ _ | filterOutputs)
+    | editPlanFnOutputs (_ _ | filterVerilatorOutputs)
     | runJob
   def makeOutputs = makeJob.getJobOutputs
-  def filterOutputs all =
-    # ignore verilator internal files
-    filter (\f !matches `.*\.(d|dat|tree|dot|a)` f) all
-
   def binary =
     def binaryName = "{outputDir}/{options.getVerilatorCompilePlanPrefix}"
     def findBinary = find (binaryName ==~ _.getPathName) makeOutputs
@@ -108,7 +134,7 @@ global def doVerilatorCompile options =
       None   = "Unable to find verilator binary: {binaryName}!".makeError.makeBadPath
       Some (Pair b _) = b
 
-  VerilatorCompileOutputs verilatorOutputs makeOutputs options binary makeJob
+  VerilatorCompileOutputs vOutputs.getVerilatorOutputsAllOutputs makeOutputs options binary makeJob
 
 tuple VerilatorCompileOutputs =
   VerilatorOutputs_:    List Path
