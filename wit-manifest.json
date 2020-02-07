@@ -25,17 +25,17 @@
         "source": "git@github.com:sifive/scribble-testsocket-sifive.git"
     },
     {
-        "commit": "ce94cba8088703f08c4373c5b3c527cdadb5ad76",
+        "commit": "4e3d67ca1ebac7fa9956558f03d964bded1f5653",
         "name": "devicetree-overlay-generator",
         "source": "git@github.com:sifive/devicetree-overlay-generator.git"
     },
     {
-        "commit": "f9b4db041c8a83f7bc42d264e408be5c2594c0bd",
+        "commit": "cff1b713ac789bea21bcb794c6e376dd7d8ca8dc",
         "name": "esdk-settings-generator",
         "source": "git@github.com:sifive/esdk-settings-generator.git"
     },
     {
-        "commit": "6ae727e7c050f5391767ec6b127e7af7c25a6b56",
+        "commit": "c3c867cc55aaeaaeee3ca2c49092ffd87aa9b01c",
         "name": "ldscript-generator",
         "source": "git@github.com:sifive/ldscript-generator.git"
     }
