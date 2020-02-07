@@ -31,12 +31,22 @@ tuple FreedomBSP =
   global PlatformHeader: Path
   global Attributes:     FreedomMakeAttributes
 
-global def makeFreedomBSP coreDTS type prefix =
+global def makeFreedomBSP coreDTS customOverlay type prefix =
   # Generate the overlay
+  def designDTSName = "{prefix}-design.dts"
   def designDTS =
-    makeDevicetreeOverlayGeneratorOptions coreDTS Nil type "{prefix}-design.dts"
-    | runDevicetreeOverlayGenerator
-    | getJobOutput
+    match customOverlay
+      Some overlay =
+        # Add coreDTS to the include list in the overlay
+        def coreFilename = extract `.*/(.*)` coreDTS.getPathName | head | getOrElse coreDTS.getPathName
+        def list = coreFilename, Nil ++ overlay.getDevicetreeCustomOverlayIncludes
+        overlay
+        | setDevicetreeCustomOverlayIncludes list
+        | (writeDevicetreeCustomOverlay designDTSName _)
+      None =
+        makeDevicetreeOverlayGeneratorOptions coreDTS Nil type designDTSName
+        | runDevicetreeOverlayGenerator
+        | getJobOutput
 
   # Create the DTB for the header generators
   def designDTB = dtsTodtb designDTS (coreDTS, Nil) "{prefix}.dtb"
@@ -73,9 +83,9 @@ global def makeFreedomBSP coreDTS type prefix =
       )
     Fail err = Fail err
 
-global def generateMetalFromDts dts machineName type outputDir =
+global def generateMetalFromDts dts machineName customOverlay type outputDir =
   def prefix = "{outputDir}/{machineName}"
-  def bsp = makeFreedomBSP dts type prefix
+  def bsp = makeFreedomBSP dts customOverlay type prefix
   def runMetalInstall bsp =
     def attributes = bsp.getFreedomBSPAttributes
     makeFreedomMetalConfigureOptions
@@ -159,7 +169,7 @@ global def freedomMetalDUTProgramCompiler =
       Some opt = opt
     def installDir = "build/freedom-metal/{dut.getDUTName}"
     def metalInstall =
-      generateMetalFromDts dut.getRocketChipDUTDTS dut.getDUTName type installDir
+      generateMetalFromDts dut.getRocketChipDUTDTS dut.getDUTName dut.getDUTCustomOverlay type installDir
     def gccProgramPlan =
       def outputFile = "{outputDir}/{programCompileOptions.getProgramCompileOptionsName}.elf"
       def newCFiles =
