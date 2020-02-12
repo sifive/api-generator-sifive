@@ -28,5 +28,10 @@
         "commit": "3c4630ef8049b78a3ae5b88d78e6e89cf63de32f",
         "name": "api-buildtarget-sifive",
         "source": "git@github.com:sifive/api-buildtarget-sifive.git"
+    },
+    {
+        "commit": "652606b945e5b15d61c8eeaba60f342dc7bb848b",
+        "name": "api-firrtl-sifive",
+        "source": "git@github.com:sifive/api-firrtl-sifive.git"
     }
 ]
