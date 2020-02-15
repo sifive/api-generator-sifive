@@ -38,8 +38,8 @@ global def makeFreedomBSP coreDTS customOverlay type prefix =
     match customOverlay
       Some overlay =
         # Add coreDTS to the include list in the overlay
-        def coreFilename = extract `.*/(.*)` coreDTS.getPathName | head | getOrElse coreDTS.getPathName
-        def list = coreFilename, Nil ++ overlay.getDevicetreeCustomOverlayIncludes
+        def coreFilename = relative "{designDTSName}/.." coreDTS.getPathName
+        def list = coreFilename, overlay.getDevicetreeCustomOverlayIncludes
         overlay
         | setDevicetreeCustomOverlayIncludes list
         | (writeDevicetreeCustomOverlay designDTSName _)
