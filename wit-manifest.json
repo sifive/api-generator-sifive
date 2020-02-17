@@ -10,7 +10,7 @@
         "source": "git@github.com:sifive/freedom-devicetree-tools.git"
     },
     {
-        "commit": "43e2c8e776e1bde2e78914a08fe8963ca42ff1f0",
+        "commit": "a256c63893d02d9d501907e22517fc7ffb72df55",
         "name": "rocket-chip",
         "source": "git@github.com:chipsalliance/rocket-chip.git"
     },
