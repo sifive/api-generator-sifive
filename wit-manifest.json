@@ -30,8 +30,13 @@
         "source": "git@github.com:sifive/api-buildtarget-sifive.git"
     },
     {
-        "commit": "652606b945e5b15d61c8eeaba60f342dc7bb848b",
+        "commit": "a97d5642c6a7e585a81d72fb33a611b77499fa55",
         "name": "api-firrtl-sifive",
         "source": "git@github.com:sifive/api-firrtl-sifive.git"
+    },
+    {
+        "commit": "6964dab0abbc736e9c0736ef48acae74f095d751",
+        "name": "api-scala-sifive",
+        "source": "git@github.com:sifive/api-scala-sifive.git"
     }
 ]

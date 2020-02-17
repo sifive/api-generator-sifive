@@ -1,23 +1,6 @@
 def defaultStderrTail = 5000
 def defaultStdoutTail = 5000
 
-def jEncodeError error = JObject (
-  "cause" → JString error.getErrorCause,
-  "stack" → JArray (map JString error.getErrorStack),
-  Nil
-)
-
-def jError jvalue =
-  jMap2
-  Error
-  (jField "cause" jString)
-  (jField "stack" (jArrayMap jString))
-
-def jEncodeStatus status = match status
-  Exited   code = JObject ("exited" → JInteger code, Nil)
-  Signaled code = JObject ("signaled" → JInteger code, Nil)
-  Aborted  error = JObject ("aborted" → jEncodeError error, Nil)
-
 tuple Simulator =
   BaseCommand: List String
   Inputs: List Path
