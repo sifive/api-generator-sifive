@@ -11,6 +11,7 @@ tuple DUT =
   #global Missing:     List Resource
   global DTS:          Path
   global DTSJSON:      Path # JSON version of DTS
+  global CustomOverlay: Option DevicetreeCustomOverlay
   global FPGABoardOpt: Option String
   global Sources:      List Path
   global ObjectModelFile: Path
@@ -20,7 +21,7 @@ global def makeDUT name configs objectModel vsrcs topModule missing dts dtsJSON 
     objectModel
     | prettyJSON
     | write "build/api-generator-sifive/{name}/programs/omfile.json"
-  DUT name configs objectModel vsrcs topModule missing dts dtsJSON board Nil omFile
+  DUT name configs objectModel vsrcs topModule missing dts dtsJSON None board Nil omFile
 
 global def sourcesInDUT regex dut =
   dut.getDUTSources
