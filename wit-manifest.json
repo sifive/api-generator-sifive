@@ -1,6 +1,6 @@
 [
     {
-        "commit": "feee9ff08bd6ed29fe42a59cfe5eea74ba44612f",
+        "commit": "8a3646887f6e22cbabdd1a94ea1e510ea61abc17",
         "name": "freedom-metal",
         "source": "git@github.com:sifive/freedom-metal.git"
     },
@@ -45,7 +45,7 @@
         "source": "git@github.com:sifive/devicetree-overlay-generator.git"
     },
     {
-        "commit": "f4c4390ed0041314dbdba667904060172e25d1e3",
+        "commit": "791b3cb9424980904145f2ff0f1e1c8961c5efac",
         "name": "esdk-settings-generator",
         "source": "git@github.com:sifive/esdk-settings-generator.git"
     },

@@ -72,15 +72,14 @@ global def makeFreedomBSP coreDTS customOverlay type prefix =
     | runFreedomMakeAttributesGenerator
 
   match attributesResult
-    Pass attributes =
-      Pass (
-        FreedomBSP
-        linkerScript
-        header.getFreedomMetalHeaderGeneratorOutputsHeader
-        header.getFreedomMetalHeaderGeneratorOutputsInlineHeader
-        platformHeader
-        attributes
-      )
+    Pass attributes = Pass (
+      FreedomBSP
+      linkerScript
+      header.getFreedomMetalHeaderGeneratorOutputsHeader
+      header.getFreedomMetalHeaderGeneratorOutputsInlineHeader
+      platformHeader
+      attributes
+    )
     Fail err = Fail err
 
 global def generateMetalFromDts dts machineName customOverlay type outputDir =

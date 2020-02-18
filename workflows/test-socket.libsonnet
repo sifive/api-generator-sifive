@@ -2,6 +2,7 @@ local bt = import 'build-target.libsonnet';
 
 {
   TestHarness(designName, extraConfigs=[], extraScalaModules=[]):: {
+    name:: designName,
     buildDirs:: {
       root: 'build/' + designName,
       firrtl: self.root + '/firrtl',
