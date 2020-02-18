@@ -979,7 +979,7 @@
           },
           "description" : {
             "name" : "datacount",
-            "description" : "number of DATA regsiters",
+            "description" : "number of DATA registers",
             "group" : "dmi_abstractcs",
             "access" : {
               "_types" : [ "R", "OMRegFieldAccessType", "OMEnum", "OMBaseType", "Product", "Equals", "Serializable", "Object" ]
@@ -1096,7 +1096,7 @@
           },
           "description" : {
             "name" : "progbufsize",
-            "description" : "number of PROGBUF regsiters",
+            "description" : "number of PROGBUF registers",
             "group" : "dmi_abstractcs",
             "access" : {
               "_types" : [ "R", "OMRegFieldAccessType", "OMEnum", "OMBaseType", "Product", "Equals", "Serializable", "Object" ]
