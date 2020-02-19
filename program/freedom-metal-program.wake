@@ -4,6 +4,18 @@ tuple FreedomMakeAttributes =
   global MABI:   String
   global CMODEL: String
 
+#########################################################
+# runFreedomMakeAttributesGenerator
+#
+# Wraps the esdk-settings-generator and produces both
+# the Makefile fragment for augmenting the build of
+# Freedom Metal, but extracts the ABI, arch, and code
+# model to pass to the compiler.
+#
+# Arguments:
+#  - options: created by makeESDKSettingsGeneratorOptions
+#
+#########################################################
 global def runFreedomMakeAttributesGenerator options =
   def attributes =
     options
@@ -38,7 +50,7 @@ global def makeFreedomBSP coreDTS customOverlay type prefix =
     match customOverlay
       Some overlay =
         # Add coreDTS to the include list in the overlay
-        def coreFilename = extract `.*/(.*)` coreDTS.getPathName | head | getOrElse coreDTS.getPathName
+        def coreFilename = relative "{designDTSName}/.." coreDTS.getPathName
         def list = coreFilename, Nil ++ overlay.getDevicetreeCustomOverlayIncludes
         overlay
         | setDevicetreeCustomOverlayIncludes list
@@ -71,17 +83,15 @@ global def makeFreedomBSP coreDTS customOverlay type prefix =
     makeESDKSettingsGeneratorOptions designDTS (coreDTS, Nil) type "{prefix}.mk"
     | runFreedomMakeAttributesGenerator
 
-  match attributesResult
-    Pass attributes =
-      Pass (
-        FreedomBSP
-        linkerScript
-        header.getFreedomMetalHeaderGeneratorOutputsHeader
-        header.getFreedomMetalHeaderGeneratorOutputsInlineHeader
-        platformHeader
-        attributes
-      )
-    Fail err = Fail err
+  attributesResult |
+  rmap (\attributes
+  FreedomBSP
+  linkerScript
+  header.getFreedomMetalHeaderGeneratorOutputsHeader
+  header.getFreedomMetalHeaderGeneratorOutputsInlineHeader
+  platformHeader
+  attributes
+  )
 
 global def generateMetalFromDts dts machineName customOverlay type outputDir =
   def prefix = "{outputDir}/{machineName}"
@@ -164,9 +174,7 @@ global def freedomMetalDUTProgramCompiler =
       | distinctBy (scmp _.getPathName _.getPathName)
 
     def outputDir = programCompileOptions.getProgramCompileOptionsOutputDir
-    def type = match dut.getDUTFPGABoardOpt
-      None     = "rtl"
-      Some opt = opt
+    def type = dut.getDUTFPGABoardOpt | getOrElse "rtl"
     def installDir = "build/freedom-metal/{dut.getDUTName}"
     def metalInstall =
       generateMetalFromDts dut.getRocketChipDUTDTS dut.getDUTName dut.getDUTCustomOverlay type installDir
