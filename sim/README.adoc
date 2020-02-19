@@ -1,0 +1,69 @@
+= Wake HDL Simulation Build Rules
+
+:xrefstyle: short
+
+This directory contains a number of Wake files containing build rules for
+invoking HDL simulation tools such as Verilator, VCS, and Xcelium.
+This document is not meant to be comprehensively document the rules here,
+but it at least provides a high-level overview of how the files relate to each other.
+
+<<figure-dependency-graph>> shows a rough graph of the dependencies between different files.
+Note that this is not a complete graph,
+and there are some additional dependencies between files not described here.
+
+[[figure-dependency-graph]]
+.Dependency Graph of Files
+....
+vcs-sim.wake      verilator-sim.wake      xcelium-sim.wake
+     |    |               |       |             |       |
+     v    |               v       |             v       |
+vcs.wake  |       verilator.wake  |       xcelium.wake  |
+          |                       |                     |
+          |                       |                     |
+          +---+-------------------+---------------------+
+              |                   |
+              v                   v
+freedom-simulator.wake -> dut-simulator.wake
+                                  |
+                                  v
+                            simulator.wake
+....
+
+The files can be grouped into several different categories:
+
+* ``<tool>.wake``, for the leaf-level build rules for individual HDL simulator tools
+* ``<tool>-sim.wake``, for integration-level build rules that combine individual tools with the notion of a "DUT"
+* ``dut-simulator.wake``, the tool-agnostic abstraction of a ``DUTSimulator``
+* ``simulator.wake``, data structures that describe the notions of ``SimulationOutput``s and ``TestResult``s
+* ``freedom-simulator.wake``, some rules that are specific to the ``vsrc/TestDriver.sv`` testbench
+
+
+== ``<tool>.wake``
+
+These files describe the leaf-level build rules for individual HDL simulator tools.
+They wrap the individual compilation and simulation commands for each individual tool, 
+providing a programmatic interface to the commands.
+They are meant to be independently reusable without any of the other files in this directory.
+
+
+== ``<tool>-sim.wake``
+
+These files bake in business logic related to the `DUT`
+as well as common command line arguments to the individual simulator tool.
+Most of the logic deals with dynamically computing the compilation and simulation arguments
+based on a `DUT` argument that is later passed in.
+These files are also responsible for invoking the `subscribe` builtin on the
+``<tool>DUTSim{Compile,Execute}OptionsHooks`` topics, which may be published to
+by individual IP blocks that require additional include paths or other command
+line options.
+
+Note that all of the `tuple` members that are of the type ``DUT => a => b => ...``
+are meant to emulate dynamic dispatch or a virtual table by allowing the member
+to be like a method defined on an object.
+
+
+== ``dut-simulator.wake``
+
+This file describes the primary data types that the build rules outside of this directory should depend on.
+These types are agnostic to the specific tool
+and are meant to abstract over the generic concepts of compiling and running HDL simulators.
