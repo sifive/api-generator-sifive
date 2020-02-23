@@ -5,6 +5,7 @@ tuple VCSCompilePlan =
   global SourceFiles: List Path
   global Plusargs:    List NamedArg
   global ExtraArgs:   List NamedArg
+  global Visible:     List Path
   global TmpDir:      String
   global OutputDir:   String
 
@@ -20,6 +21,7 @@ global def makeVCSCompilePlan sourceFiles outputDir =
   sourceFiles           # Files
   Nil                   # Plusargs
   Nil                   # ExtraArgs
+  Nil                   # Visible
   "{outputDir}/tmp"     # TmpDir
   outputDir             # OutputDir
 
@@ -54,10 +56,11 @@ def compileInputs options =
   def includeDirs  = options.getVCSCompilePlanIncludeDirs
   def srcFiles     = options.getVCSCompilePlanSourceFiles
   def tmpDir       = options.getVCSCompilePlanTmpDir
+  def visible      = options.getVCSCompilePlanVisible
 
   def includeSources = map (sources _ `.*`) includeDirs | flatten
 
-  source vcsWrapperScript, mkdir tmpDir, mkdir outputDir, includeSources ++ srcFiles
+  source vcsWrapperScript, mkdir tmpDir, mkdir outputDir, includeSources ++ srcFiles ++ visible
 
 global def doVCSCompile options =
   def outputDir = options.getVCSCompilePlanOutputDir
