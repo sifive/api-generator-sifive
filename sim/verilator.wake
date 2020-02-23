@@ -77,6 +77,7 @@ def compileInputs options =
 def filterVerilatorOutputs all =
   filter (\f !matches `.*\.(d|dat|tree|dot|a)` f) all
 
+# runs verilator but does not run make afterwards on the verilated outputs
 global def runVerilator options =
   def cmdline = options.compileCmdlineArgs
   def inputs = options.compileInputs
@@ -110,6 +111,7 @@ global def getVerilatorOutputsMakefile = getVerilatorOutputsMakefile_
 global def getVerilatorOutputsPlan = getVerilatorOutputsPlan_
 global def getVerilatorOutputsJob = getVerilatorOutputsJob_
 
+# runs verilator and also runs make on the verilated outputs
 global def doVerilatorCompile options =
   def vOutputs = runVerilator options
   def outputDir = options.getVerilatorCompilePlanOutputDir
