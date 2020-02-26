@@ -123,13 +123,20 @@ global def makeMCS plan =
     | setVivadoPlanVisibleFiles (outputDir.mkdir, bitstream, programImgList ++ tclSupportFiles)
     | runVivado
 
-  vivadoMCS
-  | getVivadoOutputAllOutputs
-  | MCSOutputs plan
+  def outs =
+    vivadoMCS
+    | getVivadoOutputAllOutputs
+  
+  outs
+  | head
+  | getOrElse "MCS failed: {outputFile}".makeError.makeBadPath
+  | MCSOutputs plan outs
 
 tuple MCSOutputs =
   Plan_: MCSPlan
-  MCS_: List Path
+  MCSList_: List Path
+  MCS_: Path
 
 global def getMCSOutputsPlan = getMCSOutputsPlan_
 global def getMCSOutputsMCS  = getMCSOutputsMCS_
+global def getMCSOutputsMCSList  = getMCSOutputsMCSList_
