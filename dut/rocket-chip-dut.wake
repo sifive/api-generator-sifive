@@ -12,6 +12,8 @@ tuple RocketChipDUTPlan =
   global ScalaModules:     List ScalaModule
   global ExtraSources:     List Path
   global FirrtlTransforms: List String
+  global CustomOverlay:    Option DevicetreeCustomOverlay
+  global FPGABoardOpt:     Option String
 
 tuple RuntimeRocketChipDUTArgs =
   global FirrtlDir:  Path
@@ -42,6 +44,8 @@ global def makeRocketChipDUTPlan name module testharness config =
   (module, Nil)  # ScalaModules List ScalaModules
   Nil
   Nil
+  None
+  None
 
 global def addRocketChipDUTPlanScalaBlock scalaBlock plan =
   plan
@@ -91,7 +95,10 @@ global def rocketChipDUTMaker dutPlan userArgs =
     (Pass objectModel) (Some topModule) =
       def name = dutPlan.getRocketChipDUTPlanName
       def configs = dutPlan.getRocketChipDUTPlanConfigs
-      makeDUT name configs objectModel vsrcs topModule blackboxes dts dtsJSON None
+      def customOverlay = dutPlan.getRocketChipDUTPlanCustomOverlay
+      def fpgaBoardOpt = dutPlan.getRocketChipDUTPlanFPGABoardOpt
+      makeDUT name configs objectModel vsrcs topModule blackboxes dts dtsJSON fpgaBoardOpt
+      | setDUTCustomOverlay customOverlay
       | setDUTSources allOutputs
       | Pass
     (Fail e) _ = Fail e

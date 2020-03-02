@@ -1,11 +1,11 @@
 [
     {
-        "commit": "feee9ff08bd6ed29fe42a59cfe5eea74ba44612f",
+        "commit": "da652642f7b1f88af7a1feaab82a81e534b2b206",
         "name": "freedom-metal",
         "source": "git@github.com:sifive/freedom-metal.git"
     },
     {
-        "commit": "89e427e15a403add4eb837f1466f0be9078049f0",
+        "commit": "38aa006c23057b2c76b0f1b9380709ac368e9f85",
         "name": "freedom-devicetree-tools",
         "source": "git@github.com:sifive/freedom-devicetree-tools.git"
     },
@@ -23,5 +23,20 @@
         "commit": "c675ef819c022a4871bc7a4db8e40018dd188ea2",
         "name": "scribble-testsocket-sifive",
         "source": "git@github.com:sifive/scribble-testsocket-sifive.git"
+    },
+    {
+        "commit": "4e3d67ca1ebac7fa9956558f03d964bded1f5653",
+        "name": "devicetree-overlay-generator",
+        "source": "git@github.com:sifive/devicetree-overlay-generator.git"
+    },
+    {
+        "commit": "cff1b713ac789bea21bcb794c6e376dd7d8ca8dc",
+        "name": "esdk-settings-generator",
+        "source": "git@github.com:sifive/esdk-settings-generator.git"
+    },
+    {
+        "commit": "c3c867cc55aaeaaeee3ca2c49092ffd87aa9b01c",
+        "name": "ldscript-generator",
+        "source": "git@github.com:sifive/ldscript-generator.git"
     }
 ]

@@ -1,131 +1,101 @@
-# takes a device tree property name and a subnode type and injects a reference
-# to the first occurance of that subnode type to the chosen node
-def addChosenRef name socSubNode inDTSContents =
-  def subnodeOpt =
-    match "({socSubNode}@[a-fA-F0-9]+)".stringToRegExp
-      Pass regex =
-        def nodeRegex = regExpCat (`^\t\t`, `(?:L[a-zA-Z0-9_]+:\s)?`, regex, `\s{$`, Nil)
-        inDTSContents
-        | map nodeRegex.extract
+tuple FreedomMakeAttributes =
+  global File:   Path
+  global MARCH:  String
+  global MABI:   String
+  global CMODEL: String
+
+#########################################################
+# runFreedomMakeAttributesGenerator
+#
+# Wraps the esdk-settings-generator and produces both
+# the Makefile fragment for augmenting the build of
+# Freedom Metal, but extracts the ABI, arch, and code
+# model to pass to the compiler.
+#
+# Arguments:
+#  - options: created by makeESDKSettingsGeneratorOptions
+#
+#########################################################
+global def runFreedomMakeAttributesGenerator options =
+  def attributes =
+    options
+    | runESDKSettingsGenerator
+    | getJobOutput
+
+  def rlines = read attributes | rmap `\n`.tokenize
+  match rlines
+    Pass lines =
+      def getAttribute attribute =
+        def regex = regExpCat (`^`, attribute, ` = (.*)$`, Nil)
+        lines
+        | map regex.extract
         | flatten
         | head
-        | omap ("/soc/{_}")
-      Fail _ = None
+      match `RISCV_ABI`.getAttribute `RISCV_ARCH`.getAttribute `RISCV_CMODEL`.getAttribute
+        (Some mabi) (Some march) (Some cmodel) = Pass (FreedomMakeAttributes attributes march mabi cmodel)
+        _ _ _ = Fail "Generated make attributes file not formatted correctly: {attributes.getPathName}".makeError
+    Fail fail = Fail fail
 
-  match subnodeOpt
-    Some subnode =
-      inDTSContents
-      | mapFlat (\a (
-        if matches `^\tchosen\s{$` a
-        then ("\tchosen \{", "\t\t{name} = <&\{{subnode}\}>;", Nil)
-        else a, Nil
-      ))
-    None = inDTSContents
+tuple FreedomBSP =
+  global LinkerScript:   Path
+  global Header:         Path
+  global InlineHeader:   Path
+  global PlatformHeader: Path
+  global Attributes:     FreedomMakeAttributes
 
-def addEntry (Pair memSubnode offsetInt) inDTSContents =
-  def offset = "0x{strbase 16 offsetInt}"
-  def subnodeOpt =
-    match "({memSubnode}@[0-9]+)".stringToRegExp
-      Pass regex =
-        def nodeRegex = regExpCat (`^\t\t`, `(?:L[a-zA-Z0-9_]+:\s)?`, regex, `\s{$`, Nil)
-        inDTSContents
-        | map nodeRegex.extract
-        | flatten
-        | head
-        | omap ("/soc/{_}")
-      Fail _ = None
+global def makeFreedomBSP coreDTS customOverlay type prefix =
+  # Generate the overlay
+  def designDTSName = "{prefix}-design.dts"
+  def designDTS =
+    match customOverlay
+      Some overlay =
+        # Add coreDTS to the include list in the overlay
+        def coreFilename = relative "{designDTSName}/.." coreDTS.getPathName
+        def list = coreFilename, Nil ++ overlay.getDevicetreeCustomOverlayIncludes
+        overlay
+        | setDevicetreeCustomOverlayIncludes list
+        | (writeDevicetreeCustomOverlay designDTSName _)
+      None =
+        makeDevicetreeOverlayGeneratorOptions coreDTS Nil type designDTSName
+        | runDevicetreeOverlayGenerator
+        | getJobOutput
 
-  match subnodeOpt
-    Some subnode =
-      inDTSContents
-      | map (replace `^\tchosen\s{$` "\tchosen \{\n\t\tmetal,entry = <&\{{subnode}\} {offset}>;")
-    None = inDTSContents
+  # Create the DTB for the header generators
+  def designDTB = dtsTodtb designDTS (coreDTS, Nil) "{prefix}.dtb"
 
-def reWrap regex = match "({regex.regExpToString})".stringToRegExp
-  Pass r = r
-  Fail e = panic "Parenthesized string is an invalid Regular Expression: ({regex.regExpToString})"
+  # Run the header generators
+  def header =
+    makeFreedomMetalHeaderGeneratorOptions designDTB "{prefix}.h"
+    | runFreedomMetalHeaderGenerator
 
-def addSocSubnodeField subnodeRegex (Pair fieldName fieldValue) inDTSContents =
-  def socSplit = splitTo `\t(L[a-zA-Z0-9_]+:\s)?soc\s{$`.matches inDTSContents
-  def subnodeSplit =
-    def regex = regExpCat (`^\t{2}`, subnodeRegex.reWrap, `\s{$`, Nil)
-    splitTo regex.matches socSplit.getPairSecond
+  def platformHeader =
+    makeFreedomBareHeaderGeneratorOptions designDTB "{prefix}-platform.h"
+    | runFreedomBareHeaderGenerator
 
-  if !subnodeSplit.getPairSecond.empty
-  then
-    socSplit.getPairFirst
-    ++ subnodeSplit.getPairFirst
-    ++ ("\t\t\t{fieldName} = {fieldValue};", subnodeSplit.getPairSecond)
-  else
-    inDTSContents
+  # Run linker script generator
+  def linkerScript =
+    makeLdScriptGeneratorOptions designDTS (coreDTS, Nil) LDSCRIPT_DEFAULT "{prefix}.lds"
+    | runLdScriptGenerator
+    | getJobOutput
 
-def splitTo f l =  match l
-  Nil  = Pair Nil Nil
-  h, t if f h = Pair (h, Nil) t
-  h, t = match (splitTo f t)
-    Pair f s = Pair (h, f) s
+  # Create the settings for the Makefile
+  def attributesResult =
+    makeESDKSettingsGeneratorOptions designDTS (coreDTS, Nil) type "{prefix}.mk"
+    | runFreedomMakeAttributesGenerator
 
-def addChosenSubnode = addSubnode `(L[a-zA-Z0-9_]+:\s)?chosen`
+  attributesResult |
+  rmap (\attributes
+  FreedomBSP
+  linkerScript
+  header.getFreedomMetalHeaderGeneratorOutputsHeader
+  header.getFreedomMetalHeaderGeneratorOutputsInlineHeader
+  platformHeader
+  attributes
+  )
 
-def addSubnode parentNode node inDTSContents =
-  def split =
-    def firstSplit = splitTo (`^\t`, parentNode, `\s{$`, Nil).regExpCat.matches inDTSContents
-    def secondSplit = splitUntil `^\t};$`.matches firstSplit.getPairSecond
-    Pair (firstSplit.getPairFirst ++ secondSplit.getPairFirst) (secondSplit.getPairSecond)
-  split.getPairFirst ++ node ++ split.getPairSecond
-
-def addStdoutChosenFromAlias nodeName inDTSContents =
-  def parentNode = `(L[a-zA-Z0-9_]+:\s)soc`
-  def firstSplit = splitTo (`^\t`, parentNode, `\s{$`, Nil).regExpCat.matches inDTSContents
-  def secondSplit = splitUntil `\t\};$`.matches firstSplit.getPairSecond
-  def socContents = secondSplit.getPairFirst
-  def baudrate = 115200
-  match "({regExpToString nodeName.quote}@[0-9]+)".stringToRegExp
-    Fail e = inDTSContents
-    Pass nodeRegex =
-      def regex = regExpCat (`^\t\t(?:L[0-9]+:\s)?`, nodeRegex, `\s{$`, Nil)
-      def serialNodes = map regex.extract socContents | flatten
-      match serialNodes
-        serialNode, _ =
-          def stdChosen =
-            "\t\tstdout-path = \"/soc/{serialNode}:{str baudrate}\";", Nil
-          addChosenSubnode stdChosen inDTSContents
-        _ = inDTSContents
-
-def addChosenNode inDTSContents =
-  def parentNode = "/"
-  def firstSplit = splitTo (parentNode.quote, `\s{$`, Nil).regExpCat.matches inDTSContents
-  def secondSplit = splitUntil `.*{.*`.matches firstSplit.getPairSecond
-  def chosenNode = "\tchosen \{", "\t\};", Nil
-
-  firstSplit.getPairFirst
-  ++ secondSplit.getPairFirst
-  ++ chosenNode
-  ++ secondSplit.getPairSecond
-
-global target fixupDTS dts stdoutPath metalEntryPairOpt romNode ramNode =
-  def clkFrequency = 32500000
-  def prefix =
-    extract `(.*)\.dts` dts.getPathName
-    | head
-    | getOrElse dts.getPathName
-
-  match dts.read
-    Pass dtsContents =
-      dtsContents
-      | tokenize `\n`
-      | addChosenNode
-      | (omap addStdoutChosenFromAlias stdoutPath | getOrElse (_))
-      | (omap addEntry metalEntryPairOpt | getOrElse (_))
-      | (omap "metal,rom".addChosenRef romNode | getOrElse (_))
-      | (omap "metal,ram".addChosenRef ramNode | getOrElse (_))
-      | catWith "\n"
-      | write "{prefix}_fixed.dts"
-    fail = dts
-
-global def generateMetalFromDts dts machineName outputDir =
+global def generateMetalFromDts dts machineName customOverlay type outputDir =
   def prefix = "{outputDir}/{machineName}"
-  def bsp = makeFreedomBSP dts prefix
+  def bsp = makeFreedomBSP dts customOverlay type prefix
   def runMetalInstall bsp =
     def attributes = bsp.getFreedomBSPAttributes
     makeFreedomMetalConfigureOptions
@@ -204,15 +174,10 @@ global def freedomMetalDUTProgramCompiler =
       | distinctBy (scmp _.getPathName _.getPathName)
 
     def outputDir = programCompileOptions.getProgramCompileOptionsOutputDir
+    def type = dut.getDUTFPGABoardOpt | getOrElse "rtl"
     def installDir = "build/freedom-metal/{dut.getDUTName}"
     def metalInstall =
-      fixupDTS
-      dut.getRocketChipDUTDTS
-      programCompileOptions.getProgramCompileOptionsStdoutPath
-      programCompileOptions.getProgramCompileOptionsEntry
-      programCompileOptions.getProgramCompileOptionsRom
-      programCompileOptions.getProgramCompileOptionsRam
-      | (generateMetalFromDts _ dut.getDUTName installDir)
+      generateMetalFromDts dut.getRocketChipDUTDTS dut.getDUTName dut.getDUTCustomOverlay type installDir
     def gccProgramPlan =
       def outputFile = "{outputDir}/{programCompileOptions.getProgramCompileOptionsName}.elf"
       def newCFiles =
