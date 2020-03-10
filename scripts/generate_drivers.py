@@ -7,6 +7,7 @@ import textwrap
 import typing as t
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 import json5
 import jsonref
@@ -421,9 +422,30 @@ def generate_metal_dev_drv(vendor, device, index, reglist):
 # Support for parsing duh file
 # ###
 
+def _jsonref_loader(uri: str, **kwargs) -> JSONType:
+    """
+    Custom jsonref loader that can handle relative file paths.
+
+    If the value of a JSON reference is a relative file path, load it relative
+    to the parent file containing the reference. Otherwise, delegate to the
+    normal jsonref loader.
+    """
+    parsed_uri = urlparse(uri)
+    # Assume that if netloc is present, then the URI is a web URI, and
+    # otherwise that the URI refers to a relative file path.
+    if parsed_uri.netloc:
+        return jsonref.jsonloader(uri, **kwargs)
+    else:
+        return json5.loads(Path(uri).read_text())
+
+
 def load_json5_with_refs(f_name: str) -> JSONType:
     with open(f_name) as fp:
-        return jsonref.JsonRef.replace_refs(json5.load(fp))
+        return jsonref.JsonRef.replace_refs(
+            json5.load(fp),
+            base_uri=f_name,
+            loader=_jsonref_loader,
+        )
 
 
 ###
