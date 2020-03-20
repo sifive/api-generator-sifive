@@ -76,20 +76,42 @@ global def rocketChipDUTMaker dutPlan userArgs =
   def allOutputs = rocketOutputs.getRocketChipGeneratorOutputsAllOutputs
   def topModuleOpt = dutPlan.getRocketChipDUTPlanTestharness.getTestharnessTopModule
   def dts = rocketOutputs.getRocketChipGeneratorOutputsDTS
+
+  # TODO: This should be something that is captured by
+  # RocketChipGeneratorOutputs in rocket-chip.git, since only the Wake rules in
+  # that repo can know what the final output filenames look like.
+  # This can be replaced once we actually add that in rocket-chip.git.
   def dtsJSON =
-    def fileName =
+    # getFileName: RocketChipGeneratorOutputs => Result String String
+    def getFileName rocketOutputs =
       rocketOutputs
       | getRocketChipGeneratorOutputsInputOptions
-      | getRocketChipGeneratorOptionsConfigNames
-      | catWith "_"
-      | ("_root_.{_}.json")
-    def fileRegex = regExpCat (`([^/]*/)*`, fileName.quote, Nil)
+      | getRocketChipGeneratorOptionsBaseFileName
+      | omap ("{_}.json")
+      | getOrFail "dtsJSON not available if outputBaseName not explicitly passed to rocket-chip Generator.scala.".makeError
 
-    rocketOutputs
-    | getRocketChipGeneratorOutputsAllOutputs
-    | find (matches fileRegex _.getPathName)
-    | omap getPairFirst
-    | getOrElse "{fileName} file not found".makeError.makeBadPath
+    # getOrFailOutputs: RocketChipGeneratorOutputs => Result (List Path) Error
+    # If any output is a BadPath, then return Fail with the first failed path.
+    # Otherwise return Pass with the full list of paths.
+    def getOrFailOutputs rocketOutputs =
+      rocketOutputs
+      | getRocketChipGeneratorOutputsAllOutputs
+      | findFailFn getPathResult
+
+    # findDTSJSONPath: String => List Path => Path
+    # Find the output Path corresponding to the filename, returning BadPath if
+    # not fonud.
+    def findDTSJSONPath fileName outputs =
+      def fileRegex = regExpCat (`([^/]*/)*`, fileName.quote, Nil)
+      outputs
+      | find (matches fileRegex _.getPathName)
+      | omap getPairFirst
+      | getOrElse "{fileName} file not found".makeError.makeBadPath
+
+    match (getFileName rocketOutputs) (getOrFailOutputs rocketOutputs)
+      (Fail err) _ = err.makeBadPath
+      _ (Fail err) = err.makeBadPath
+      (Pass fileName) (Pass outputs) = findDTSJSONPath fileName outputs
 
   match objectModelResult topModuleOpt
     (Pass objectModel) (Some topModule) =
