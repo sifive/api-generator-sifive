@@ -43,44 +43,46 @@ tuple FreedomBSP =
   global PlatformHeader: Path
   global Attributes:     FreedomMakeAttributes
 
-global def makeFreedomBSP coreDTS customOverlay type prefix =
+global def makeFreedomBSP coreDTS customOverlay type prefix machineName =
+  def installedCoreDTS = installIn prefix coreDTS
+
   # Generate the overlay
-  def designDTSName = "{prefix}-design.dts"
+  def designDTSName = "{prefix}/{machineName}-design.dts"
   def designDTS =
     match customOverlay
       Some overlay =
-        # Add coreDTS to the include list in the overlay
-        def coreFilename = relative "{designDTSName}/.." coreDTS.getPathName
+        # Add installedCoreDTS to the include list in the overlay
+        def coreFilename = installedCoreDTS.getPathName
         def list = coreFilename, Nil ++ overlay.getDevicetreeCustomOverlayIncludes
         overlay
         | setDevicetreeCustomOverlayIncludes list
         | (writeDevicetreeCustomOverlay designDTSName _)
       None =
-        makeDevicetreeOverlayGeneratorOptions coreDTS Nil type designDTSName
+        makeDevicetreeOverlayGeneratorOptions installedCoreDTS Nil type designDTSName
         | runDevicetreeOverlayGenerator
         | getJobOutput
 
   # Create the DTB for the header generators
-  def designDTB = dtsTodtb designDTS (coreDTS, Nil) "{prefix}.dtb"
+  def designDTB = dtsTodtb designDTS (installedCoreDTS, Nil) "{prefix}/{machineName}.dtb"
 
   # Run the header generators
   def header =
-    makeFreedomMetalHeaderGeneratorOptions designDTB "{prefix}.h"
+    makeFreedomMetalHeaderGeneratorOptions designDTB "{prefix}/{machineName}.h"
     | runFreedomMetalHeaderGenerator
 
   def platformHeader =
-    makeFreedomBareHeaderGeneratorOptions designDTB "{prefix}-platform.h"
+    makeFreedomBareHeaderGeneratorOptions designDTB "{prefix}/{machineName}-platform.h"
     | runFreedomBareHeaderGenerator
 
   # Run linker script generator
   def linkerScript =
-    makeLdScriptGeneratorOptions designDTS (coreDTS, Nil) LDSCRIPT_DEFAULT "{prefix}.lds"
+    makeLdScriptGeneratorOptions designDTS (installedCoreDTS, Nil) LDSCRIPT_DEFAULT "{prefix}/{machineName}.lds"
     | runLdScriptGenerator
     | getJobOutput
 
   # Create the settings for the Makefile
   def attributesResult =
-    makeESDKSettingsGeneratorOptions designDTS (coreDTS, Nil) type "{prefix}.mk"
+    makeESDKSettingsGeneratorOptions designDTS (installedCoreDTS, Nil) type "{prefix}/{machineName}.mk"
     | runFreedomMakeAttributesGenerator
 
   attributesResult |
@@ -95,7 +97,7 @@ global def makeFreedomBSP coreDTS customOverlay type prefix =
 
 global def generateMetalFromDts dts machineName customOverlay type outputDir =
   def prefix = "{outputDir}/{machineName}"
-  def bsp = makeFreedomBSP dts customOverlay type prefix
+  def bsp = makeFreedomBSP dts customOverlay type outputDir machineName
   def runMetalInstall bsp =
     def attributes = bsp.getFreedomBSPAttributes
     makeFreedomMetalConfigureOptions
