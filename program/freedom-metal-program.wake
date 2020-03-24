@@ -43,8 +43,15 @@ tuple FreedomBSP =
   global PlatformHeader: Path
   global Attributes:     FreedomMakeAttributes
 
+def getBaseName pathName = replace `^.*/` '' pathName
+
 global def makeFreedomBSP coreDTS customOverlay type prefix machineName =
-  def installedCoreDTS = installIn prefix coreDTS
+  # Install base DTS and overlay into the same directory so that the include
+  # path is simple and does not include a long, relative path.
+  def installedCoreDTS =
+    def baseName = getBaseName coreDTS.getPathName
+    def dest = "{prefix}/{baseName}"
+    installAs dest coreDTS
 
   # Generate the overlay
   def designDTSName = "{prefix}/{machineName}-design.dts"
@@ -52,7 +59,7 @@ global def makeFreedomBSP coreDTS customOverlay type prefix machineName =
     match customOverlay
       Some overlay =
         # Add installedCoreDTS to the include list in the overlay
-        def coreFilename = installedCoreDTS.getPathName
+        def coreFilename = getBaseName installedCoreDTS.getPathName
         def list = coreFilename, Nil ++ overlay.getDevicetreeCustomOverlayIncludes
         overlay
         | setDevicetreeCustomOverlayIncludes list
