@@ -9,11 +9,6 @@ global def makeXceliumDUTSimulatorPlan testDriver waves score compileOptions exe
   XceliumDUTSimulatorPlan testDriver waves score compileOptions executeOptions
 
 
-tuple XceliumDUTSimCompileOptions =
-  global GenericOpts: DUTSimCompileOptions
-  global ExtraArgs:   List NamedArg
-
-
 tuple PrivateXceliumDUTSimCompileOptions =
   global DUTOpts:   DUTSimCompileOptions
   global ExtraArgs: List NamedArg
@@ -42,10 +37,6 @@ def toXceliumSimCompilePlan privateOpts outputDir =
   | setXceliumCompilePlanIncludeDirs    includeDirs
   | setXceliumCompilePlanDefines        defines
   | setXceliumCompilePlanPlusargs       plusargs
-
-tuple XceliumDUTSimExecuteOptions =
-  global GenericOpts: DUTSimExecuteOptions
-  global ExtraArgs:   List NamedArg
 
 
 tuple PrivateXceliumDUTSimExecuteOptions =

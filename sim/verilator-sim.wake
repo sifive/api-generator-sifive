@@ -10,11 +10,6 @@ global def makeVerilatorDUTSimulatorPlan testDriver waves score compileOptions e
 
 
 # compile options that you want to bake into your dut simulator
-tuple VerilatorDUTSimCompileOptions =
-  global GenericOpts: DUTSimCompileOptions
-  global MakeArgs:    List NamedArg
-  global ExtraArgs:   List NamedArg
-
 tuple PrivateVerilatorDUTSimCompileOptions =
   global Main:      Path
   global Prefix:    String
@@ -61,10 +56,6 @@ def toVerilatorSimCompilePlan privateOpts outputDir =
 
 
 # execute options that you want to bake into your dut simulator
-tuple VerilatorDUTSimExecuteOptions =
-  global GenericOpts: DUTSimExecuteOptions
-  global ExtraArgs:   List NamedArg
-
 tuple PrivateVerilatorDUTSimExecuteOptions =
   global DUTOpts:   DUTSimExecuteOptions
   global ExtraArgs: List NamedArg

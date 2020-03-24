@@ -9,10 +9,6 @@ global def makeVCSDUTSimulatorPlan testDriver waves score compileOptions execute
   VCSDUTSimulatorPlan testDriver waves score compileOptions executeOptions
 
 
-tuple VCSDUTSimCompileOptions =
-  global GenericOpts: DUTSimCompileOptions
-  global ExtraArgs:   List NamedArg
-
 tuple PrivateVCSDUTSimCompileOptions =
   global DUTOpts:   DUTSimCompileOptions
   global ExtraArgs: List NamedArg
@@ -39,10 +35,6 @@ def toVCSSimCompilePlan privateOpts outputDir =
   | setVCSCompilePlanIncludeDirs includeDirs
   | setVCSCompilePlanDefines     defines
   | setVCSCompilePlanPlusargs    plusargs
-
-tuple VCSDUTSimExecuteOptions =
-  global GenericOpts: DUTSimExecuteOptions
-  global ExtraArgs:   List NamedArg
 
 tuple PrivateVCSDUTSimExecuteOptions =
   global DUTOpts:   DUTSimExecuteOptions
