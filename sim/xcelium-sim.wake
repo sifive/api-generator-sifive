@@ -12,6 +12,7 @@ global def makeXceliumDUTSimulatorPlan testDriver waves score compileOptions exe
 tuple PrivateXceliumDUTSimCompileOptions =
   global DUTOpts:   DUTSimCompileOptions
   global ExtraArgs: List NamedArg
+  global LibraryDirs: List String # Verilog library include directories. These should be relative to the workspace root.
 
 global def defaultXceliumResources = "cadence/xcelium/18.09.004", Nil
 
@@ -19,22 +20,25 @@ global def makePrivateXceliumDUTSimCompileOptions =
   def dutOpts =
     emptyDUTSimCompileOptions
     | setDUTSimCompileOptionsResources defaultXceliumResources
-  PrivateXceliumDUTSimCompileOptions dutOpts Nil
+  PrivateXceliumDUTSimCompileOptions dutOpts Nil Nil
 
 def toXceliumSimCompilePlan privateOpts outputDir =
   def dutOpts      = privateOpts.getPrivateXceliumDUTSimCompileOptionsDUTOpts
 
   def includeDirs    = dutOpts.getDUTSimCompileOptionsIncludeDirs
+  def libraryDirs    = dutOpts.getDUTSimCompileOptionsLibraryDirs
   def defines        = dutOpts.getDUTSimCompileOptionsDefines
   def sourceFiles    = dutOpts.getDUTSimCompileOptionsSourceFiles
   def plusargs       = dutOpts.getDUTSimCompileOptionsPlusargs
   def resources      = dutOpts.getDUTSimCompileOptionsResources
   def extraArgs      = privateOpts.getPrivateXceliumDUTSimCompileOptionsExtraArgs
+  def extraLibraryDirs = privateOpts.getPrivateXceliumDUTSimCompileOptionsLibraryDirs
 
   makeXceliumCompilePlan sourceFiles outputDir
   | setXceliumCompilePlanResources      resources
   | setXceliumCompilePlanExtraArgs      extraArgs
   | setXceliumCompilePlanIncludeDirs    includeDirs
+  | setXceliumCompilePlanLibraryDirs    (libraryDirs ++ extraLibraryDirs)
   | setXceliumCompilePlanDefines        defines
   | setXceliumCompilePlanPlusargs       plusargs
 

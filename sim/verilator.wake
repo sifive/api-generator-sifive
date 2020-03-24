@@ -1,5 +1,6 @@
 tuple VerilatorCompilePlan =
   global IncludeDirs:   List String
+  global LibraryDirs:   List String # Verilog library directories as used in -y option
   global Defines:       List NamedArg
   global SourceFiles:   List Path
   global Plusargs:      List NamedArg
@@ -17,6 +18,7 @@ global def defaultVerilatorResources = "verilator/4.008", Nil
 global def makeVerilatorCompilePlan sourceFiles main topModule outputDir =
   VerilatorCompilePlan
   Nil            # IncludeDirs
+  Nil            # LibraryDirs
   Nil            # Defines
   sourceFiles    # SourceFiles
   Nil            # Plusargs
@@ -35,6 +37,7 @@ def compileCmdlineArgs options =
   def outputDir    = options.getVerilatorCompilePlanOutputDir
   def plusargs     = options.getVerilatorCompilePlanPlusargs
   def includeDirs  = options.getVerilatorCompilePlanIncludeDirs
+  def libraryDirs  = options.getVerilatorCompilePlanLibraryDirs
   def defines      = options.getVerilatorCompilePlanDefines
   def rawFiles     = options.getVerilatorCompilePlanSourceFiles
   def otherArgs    = namedArgsToListString runDir options.getVerilatorCompilePlanExtraArgs
@@ -50,6 +53,7 @@ def compileCmdlineArgs options =
 
   def runDir = outputDir
   def includeArgs = map (\i "+incdir+{i}") includeDirs
+  def libraryDirArgs = mapFlat (\i '-y', (relative runDir i), Nil) libraryDirs
   def defineArgs  = namedArgsToCmdline runDir "+define+" "=" defines
   def relativeFiles = map (_.getPathName) files
   def base = verilatorWrapperScript, Nil
@@ -58,6 +62,7 @@ def compileCmdlineArgs options =
 
   base
   ++ includeArgs
+  ++ libraryDirArgs
   ++ defineArgs
   ++ relativeFiles
   ++ plusargArgs
@@ -68,11 +73,13 @@ def compileCmdlineArgs options =
 def compileInputs options =
   def outputDir = options.getVerilatorCompilePlanOutputDir
   def includeDirs = options.getVerilatorCompilePlanIncludeDirs
+  def libraryDirs = options.getVerilatorCompilePlanLibraryDirs
   def srcFiles = options.getVerilatorCompilePlanSourceFiles
   def visible = options.getVerilatorCompilePlanVisible
   def includeSources = map (sources _ `.*`) includeDirs | flatten
+  def librarySources = map (sources _ `.*`) libraryDirs | flatten
 
-  source verilatorWrapperScript, mkdir outputDir, includeSources ++ srcFiles ++ visible
+  source verilatorWrapperScript, mkdir outputDir, includeSources ++ librarySources ++ srcFiles ++ visible
 
 def filterVerilatorOutputs all =
   filter (\f !matches `.*\.(d|dat|tree|dot|a)` f) all

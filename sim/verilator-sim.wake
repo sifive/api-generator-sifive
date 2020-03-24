@@ -17,6 +17,7 @@ tuple PrivateVerilatorDUTSimCompileOptions =
   global DUTOpts:   DUTSimCompileOptions
   global MakeArgs:  List NamedArg
   global ExtraArgs: List NamedArg
+  global LibraryDirs: List String # Verilog library include directories.
 
 global def makePrivateVerilatorDUTSimCompileOptions main prefix topModule =
   def dutOpts =
@@ -29,11 +30,13 @@ global def makePrivateVerilatorDUTSimCompileOptions main prefix topModule =
   dutOpts
   Nil
   Nil
+  Nil
 
 def toVerilatorSimCompilePlan privateOpts outputDir =
   def dutOpts      = privateOpts.getPrivateVerilatorDUTSimCompileOptionsDUTOpts
 
   def includeDirs  = dutOpts.getDUTSimCompileOptionsIncludeDirs
+  def libraryDirs  = dutOpts.getDUTSimCompileOptionsLibraryDirs
   def defines      = dutOpts.getDUTSimCompileOptionsDefines
   def sourceFiles  = dutOpts.getDUTSimCompileOptionsSourceFiles
   def plusargs     = dutOpts.getDUTSimCompileOptionsPlusargs
@@ -41,6 +44,7 @@ def toVerilatorSimCompilePlan privateOpts outputDir =
 
   def makeArgs     = privateOpts.getPrivateVerilatorDUTSimCompileOptionsMakeArgs
   def extraArgs    = privateOpts.getPrivateVerilatorDUTSimCompileOptionsExtraArgs
+  def extraLibraryDirs = privateOpts.getPrivateVerilatorDUTSimCompileOptionsLibraryDirs
   def main         = privateOpts.getPrivateVerilatorDUTSimCompileOptionsMain
   def prefix       = privateOpts.getPrivateVerilatorDUTSimCompileOptionsPrefix
   def topModule    = privateOpts.getPrivateVerilatorDUTSimCompileOptionsTopModule
@@ -49,6 +53,7 @@ def toVerilatorSimCompilePlan privateOpts outputDir =
   | setVerilatorCompilePlanExtraArgs   extraArgs
   | setVerilatorCompilePlanMakeArgs    makeArgs
   | setVerilatorCompilePlanIncludeDirs includeDirs
+  | setVerilatorCompilePlanLibraryDirs (libraryDirs ++ extraLibraryDirs)
   | setVerilatorCompilePlanDefines     defines
   | setVerilatorCompilePlanPlusargs    plusargs
   | setVerilatorCompilePlanPrefix      prefix

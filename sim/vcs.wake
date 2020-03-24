@@ -1,6 +1,7 @@
 tuple VCSCompilePlan =
   global Resources:   List String
   global IncludeDirs: List String
+  global LibraryDirs: List String # Verilog library directories as used in -y option
   global Defines:     List NamedArg
   global SourceFiles: List Path
   global Plusargs:    List NamedArg
@@ -17,6 +18,7 @@ global def makeVCSCompilePlan sourceFiles outputDir =
   VCSCompilePlan
   defaultVCSResources   # Resources
   Nil                   # IncludeDirs
+  Nil                   # LibraryDirs
   Nil                   # Defines
   sourceFiles           # Files
   Nil                   # Plusargs
@@ -30,6 +32,7 @@ def vcsWrapperScript = simplify "{here}/../scripts/vcs_wrapper"
 def compileCmdlineArgs options =
   def outputDir    = options.getVCSCompilePlanOutputDir
   def includeDirs  = options.getVCSCompilePlanIncludeDirs
+  def libraryDirs  = options.getVCSCompilePlanLibraryDirs
   def defines      = options.getVCSCompilePlanDefines
   def plusargs     = options.getVCSCompilePlanPlusargs
   def rawFiles     = options.getVCSCompilePlanSourceFiles
@@ -39,12 +42,14 @@ def compileCmdlineArgs options =
   def runDir = outputDir
 
   def includeArgs = map (\i "+incdir+{relative runDir i}") includeDirs
+  def libraryDirArgs = mapFlat (\i '-y', (relative runDir i), Nil) libraryDirs
   def defineArgs  = namedArgsToCmdline runDir "+define+" "=" defines
   def plusargArgs = namedArgsToCmdline runDir "+" "=" plusargs
   def fileArgs    = map (relative runDir _.getPathName) files
 
   relative runDir vcsWrapperScript,
   includeArgs
+  ++ libraryDirArgs
   ++ defineArgs
   ++ plusargArgs
   ++ otherArgs
@@ -54,13 +59,15 @@ def compileCmdlineArgs options =
 def compileInputs options =
   def outputDir    = options.getVCSCompilePlanOutputDir
   def includeDirs  = options.getVCSCompilePlanIncludeDirs
+  def libraryDirs  = options.getVCSCompilePlanLibraryDirs
   def srcFiles     = options.getVCSCompilePlanSourceFiles
   def tmpDir       = options.getVCSCompilePlanTmpDir
   def visible      = options.getVCSCompilePlanVisible
 
   def includeSources = map (sources _ `.*`) includeDirs | flatten
+  def librarySources = map (sources _ `.*`) libraryDirs | flatten
 
-  source vcsWrapperScript, mkdir tmpDir, mkdir outputDir, includeSources ++ srcFiles ++ visible
+  source vcsWrapperScript, mkdir tmpDir, mkdir outputDir, includeSources ++ librarySources ++ srcFiles ++ visible
 
 global def doVCSCompile options =
   def outputDir = options.getVCSCompilePlanOutputDir

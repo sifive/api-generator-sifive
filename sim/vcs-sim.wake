@@ -12,27 +12,31 @@ global def makeVCSDUTSimulatorPlan testDriver waves score compileOptions execute
 tuple PrivateVCSDUTSimCompileOptions =
   global DUTOpts:   DUTSimCompileOptions
   global ExtraArgs: List NamedArg
+  global LibraryDirs: List String # Verilog library include directories. These should be relative to the workspace root.
 
 global def makePrivateVCSDUTSimCompileOptions =
   def dutOpts =
     emptyDUTSimCompileOptions
     | setDUTSimCompileOptionsResources defaultVCSResources
-  PrivateVCSDUTSimCompileOptions dutOpts Nil
+  PrivateVCSDUTSimCompileOptions dutOpts Nil Nil
 
 def toVCSSimCompilePlan privateOpts outputDir =
   def dutOpts      = privateOpts.getPrivateVCSDUTSimCompileOptionsDUTOpts
 
   def resources    = dutOpts.getDUTSimCompileOptionsResources
   def includeDirs  = dutOpts.getDUTSimCompileOptionsIncludeDirs
+  def libraryDirs  = dutOpts.getDUTSimCompileOptionsLibraryDirs
   def defines      = dutOpts.getDUTSimCompileOptionsDefines
   def sourceFiles  = dutOpts.getDUTSimCompileOptionsSourceFiles
   def plusargs     = dutOpts.getDUTSimCompileOptionsPlusargs
   def extraArgs    = privateOpts.getPrivateVCSDUTSimCompileOptionsExtraArgs
+  def extraLibraryDirs = privateOpts.getPrivateVCSDUTSimCompileOptionsLibraryDirs
 
   makeVCSCompilePlan sourceFiles outputDir
   | setVCSCompilePlanResources   resources
   | setVCSCompilePlanExtraArgs   extraArgs
   | setVCSCompilePlanIncludeDirs includeDirs
+  | setVCSCompilePlanLibraryDirs (libraryDirs ++ extraLibraryDirs)
   | setVCSCompilePlanDefines     defines
   | setVCSCompilePlanPlusargs    plusargs
 

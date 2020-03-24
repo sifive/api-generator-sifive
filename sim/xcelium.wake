@@ -1,6 +1,7 @@
 tuple XceliumCompilePlan =
   global Resources:   List String
   global IncludeDirs: List String
+  global LibraryDirs: List String # Verilog library directories as used in -y option
   global Defines:     List NamedArg
   global SourceFiles: List Path
   global Plusargs:    List NamedArg
@@ -14,6 +15,7 @@ global def makeXceliumCompilePlan sourceFiles outputDir =
   XceliumCompilePlan
   (defaultXceliumVersion, Nil) # Resources
   Nil                # IncludeDirs
+  Nil                # LibraryDirs
   Nil                # Defines
   sourceFiles        # Files
   Nil                # Plusargs
@@ -27,6 +29,7 @@ def compileCmdlineArgs options =
   def outputDir    = options.getXceliumCompilePlanOutputDir
   def plusargs     = options.getXceliumCompilePlanPlusargs
   def includeDirs  = options.getXceliumCompilePlanIncludeDirs
+  def libraryDirs  = options.getXceliumCompilePlanLibraryDirs
   def defines      = options.getXceliumCompilePlanDefines
   def rawFiles     = options.getXceliumCompilePlanSourceFiles
   def otherArgs    = namedArgsToListString runDir options.getXceliumCompilePlanExtraArgs
@@ -35,12 +38,14 @@ def compileCmdlineArgs options =
   def runDir = outputDir
 
   def includeArgs = map (\i "+incdir+{relative runDir i}") includeDirs
+  def libraryDirArgs = mapFlat (\i '-y', (relative runDir i), Nil) libraryDirs
   def defineArgs  = namedArgsToCmdline runDir "+define+" "=" defines
   def plusargArgs = namedArgsToCmdline runDir "+" "=" plusargs
   def fileArgs = map (relative runDir _.getPathName) files
 
   relative runDir xrunWrapperScript,
   includeArgs
+  ++ libraryDirArgs
   ++ defineArgs
   ++ plusargArgs
   ++ otherArgs
@@ -49,13 +54,15 @@ def compileCmdlineArgs options =
 def compileInputs options =
   def outputDir    = options.getXceliumCompilePlanOutputDir
   def includeDirs  = options.getXceliumCompilePlanIncludeDirs
+  def libraryDirs  = options.getXceliumCompilePlanLibraryDirs
   def srcFiles     = options.getXceliumCompilePlanSourceFiles
   def homeDir      = options.getXceliumCompilePlanFHomeDir
 
   def includeSources = map (sources _ `.*`) includeDirs | flatten
+  def librarySources = map (sources _ `.*`) libraryDirs | flatten
   def homeSources = sources homeDir `.*`
 
-  source xrunWrapperScript, mkdir outputDir, includeSources ++ srcFiles ++ homeSources# ++ includeDirs
+  source xrunWrapperScript, mkdir outputDir, includeSources ++ librarySources ++ srcFiles ++ homeSources
 
 global def doXceliumCompile options =
   def outputDir = options.getXceliumCompilePlanOutputDir

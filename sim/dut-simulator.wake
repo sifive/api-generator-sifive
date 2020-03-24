@@ -87,13 +87,14 @@ global def simulateDUT dut dutOptions userOptions =
 
 tuple DUTSimCompileOptions =
   global IncludeDirs:    List String
+  global LibraryDirs:    List String # Verilog library directories
   global Defines:        List NamedArg
   global SourceFiles:    List Path
   global Plusargs:       List NamedArg
   global Resources:      List String # resources to pass to the simulator `Plan`
 
 global def makeDUTSimCompileOptions includeDirs defines sourceFiles plusargs =
-  DUTSimCompileOptions includeDirs defines sourceFiles plusargs Nil
+  DUTSimCompileOptions includeDirs Nil defines sourceFiles plusargs Nil
 
 global def emptyDUTSimCompileOptions = makeDUTSimCompileOptions Nil Nil Nil Nil
 
@@ -101,17 +102,19 @@ global def withDUTSimCompileOptions dut dutSimCompileOptions =
   dutSimCompileOptions
   | editDUTSimCompileOptionsSourceFiles (dut.getDUTVsrcs ++ _)
 
-global def appendDUTSimCompileOptions (DUTSimCompileOptions includes defines srcs plusargs resources) options =
+global def appendDUTSimCompileOptions (DUTSimCompileOptions includes libraryDirs defines srcs plusargs resources) options =
   options
   | editDUTSimCompileOptionsIncludeDirs  (_ ++ includes)
+  | editDUTSimCompileOptionsLibraryDirs  (_ ++ libraryDirs)
   | editDUTSimCompileOptionsDefines      (_ ++ defines)
   | editDUTSimCompileOptionsSourceFiles  (_ ++ srcs)
   | editDUTSimCompileOptionsPlusargs     (_ ++ plusargs)
   | editDUTSimCompileOptionsResources    (_ ++ resources)
 
-global def prependDUTSimCompileOptions (DUTSimCompileOptions includes defines srcs plusargs resources) options =
+global def prependDUTSimCompileOptions (DUTSimCompileOptions includes libraryDirs defines srcs plusargs resources) options =
   options
   | editDUTSimCompileOptionsIncludeDirs  (includes ++ _)
+  | editDUTSimCompileOptionsLibraryDirs  (libraryDirs ++ _)
   | editDUTSimCompileOptionsDefines      (defines ++ _)
   | editDUTSimCompileOptionsSourceFiles  (srcs ++ _)
   | editDUTSimCompileOptionsPlusargs     (plusargs ++ _)
