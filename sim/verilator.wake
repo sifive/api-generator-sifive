@@ -13,7 +13,7 @@ tuple VerilatorCompilePlan =
   global Resources:     List String
   global OutputDir:     String
 
-global def defaultVerilatorResources = "verilator/4.008", Nil
+global def defaultVerilatorResources = "verilator/4.028", Nil
 
 global def makeVerilatorCompilePlan sourceFiles main topModule outputDir =
   VerilatorCompilePlan
