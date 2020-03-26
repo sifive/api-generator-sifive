@@ -51,7 +51,7 @@ def compileCmdlineArgs options =
 
   def files = distinctBy (scmpIdentifier _.getPathName _.getPathName) rawFiles
 
-  def runDir = outputDir
+  def runDir = "."
   def includeArgs = map (\i "+incdir+{i}") includeDirs
   def libraryDirArgs = mapFlat (\i '-y', (relative runDir i), Nil) libraryDirs
   def defineArgs  = namedArgsToCmdline runDir "+define+" "=" defines
