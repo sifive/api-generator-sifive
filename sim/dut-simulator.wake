@@ -74,6 +74,8 @@ global def runDUTSimulator dutSimulator dut dutOptions userOptions =
   dutOptions.getDUTSimulationOptionsExecuteOptions
   userOptions
 
+global topic dutSimulators : DUTSimulator
+
 global def simulateDUT dut dutOptions userOptions =
   def compileOpts = dutOptions.getDUTSimulationOptionsCompileOptions
   def executeOpts = dutOptions.getDUTSimulationOptionsExecuteOptions

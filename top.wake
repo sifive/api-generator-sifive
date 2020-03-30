@@ -21,6 +21,9 @@ global def compileSimTarget dut buildRoot =
   def opts = makeUserSimulationOptions "verilator" False (buildRoot.getBuildTreeSimulationDir "verilator")
   verilatorCompile dut opts
 
+global topic vivadoVsrcHooks : (dut: DUT) => Option (Unit => List Path)
+global topic vivadoBlackBoxResources : DUT => Option (List String)
+
 global def bitstreamTarget board dut buildRoot =
   def name = dut.getDUTName
   def vendor = "xilinx"
@@ -50,6 +53,8 @@ global def bitstreamTarget board dut buildRoot =
   | setBitstreamPlanVisibleFiles visibleFiles
   | setBitstreamPlanTclFiles tclFiles
   | makeBitstream
+
+global topic dutTests : DUTTest
 
 # A target that can be used with runPlatform to run a suite of simulation tests
 # and return a Result indicating whether or not all tests passed.

@@ -105,7 +105,7 @@ global def programCompileOptionsToGCCProgramPlan outputFile plan =
 tuple Program =
   global Binary:   Path
 
-global def makeProgram binary = Program binary
+global def makeProgram binary_ = Program binary_
 
 tuple DUTProgram =
   Name_:         String
@@ -127,8 +127,8 @@ global def makeDUTProgram programCompiler dut options =
   def stdlib       = programCompiler.getDUTProgramCompilerStdlib
   def host         = programCompiler.getDUTProgramCompilerHost
   def memoryRegion = programCompiler.getDUTProgramCompilerMemoryRegion
-  def binary       = program.getProgramBinary
-  DUTProgram  name stdlib host memoryRegion binary
+  def binary_      = program.getProgramBinary
+  DUTProgram  name stdlib host memoryRegion binary_
 
 
 tuple SimBootloaderPlan =

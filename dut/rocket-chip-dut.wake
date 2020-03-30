@@ -224,6 +224,9 @@ global def withRocketChipDUTSimExecuteOptions dut dutSimExecuteOptions =
   | withDUTSimExecuteOptions dut
 
 
+global topic dutSimCompileOptionsHooks : DUT => Option (DUTSimCompileOptions => DUTSimCompileOptions)
+global topic dutSimExecuteOptionsHooks : DUT => Option (DUTSimExecuteOptions => DUTSimExecuteOptions)
+
 publish dutSimCompileOptionsHooks = rocketChipEICGSimCompileHook, Nil
 
 global def rocketChipEICGSimCompileHook =

@@ -45,7 +45,7 @@ tuple FreedomBSP =
 
 def getBaseName pathName = replace `^.*/` '' pathName
 
-global def makeFreedomBSP coreDTS customOverlay type prefix machineName =
+global def makeFreedomBSP coreDTS customOverlay type_ prefix machineName =
   # Install base DTS and overlay into the same directory so that the include
   # path is simple and does not include a long, relative path.
   def installedCoreDTS =
@@ -65,7 +65,7 @@ global def makeFreedomBSP coreDTS customOverlay type prefix machineName =
         | setDevicetreeCustomOverlayIncludes list
         | (writeDevicetreeCustomOverlay designDTSName _)
       None =
-        makeDevicetreeOverlayGeneratorOptions installedCoreDTS Nil type designDTSName
+        makeDevicetreeOverlayGeneratorOptions installedCoreDTS Nil type_ designDTSName
         | runDevicetreeOverlayGenerator
         | getJobOutput
 
@@ -89,7 +89,7 @@ global def makeFreedomBSP coreDTS customOverlay type prefix machineName =
 
   # Create the settings for the Makefile
   def attributesResult =
-    makeESDKSettingsGeneratorOptions designDTS (installedCoreDTS, Nil) type "{prefix}/{machineName}.mk"
+    makeESDKSettingsGeneratorOptions designDTS (installedCoreDTS, Nil) type_ "{prefix}/{machineName}.mk"
     | runFreedomMakeAttributesGenerator
 
   attributesResult |
@@ -102,9 +102,9 @@ global def makeFreedomBSP coreDTS customOverlay type prefix machineName =
   attributes
   )
 
-global def generateMetalFromDts dts machineName customOverlay type outputDir =
+global def generateMetalFromDts dts machineName customOverlay type_ outputDir =
   def prefix = "{outputDir}/{machineName}"
-  def bsp = makeFreedomBSP dts customOverlay type outputDir machineName
+  def bsp = makeFreedomBSP dts customOverlay type_ outputDir machineName
   def runMetalInstall bsp =
     def attributes = bsp.getFreedomBSPAttributes
     makeFreedomMetalConfigureOptions
@@ -155,6 +155,7 @@ global def makeFreedomMetalProgram metalInstall gccProgramPlan =
   | makeGCCProgram
 
 
+global topic rocketChipDUTrogramCompilers : DUTProgramCompiler
 publish rocketChipDUTrogramCompilers = freedomMetalDUTProgramCompiler, Nil
 
 global def freedomMetalDUTProgramCompiler =
@@ -183,10 +184,10 @@ global def freedomMetalDUTProgramCompiler =
       | distinctBy (scmp _.getPathName _.getPathName)
 
     def outputDir = programCompileOptions.getProgramCompileOptionsOutputDir
-    def type = dut.getDUTFPGABoardOpt | getOrElse "rtl"
+    def type_ = dut.getDUTFPGABoardOpt | getOrElse "rtl"
     def installDir = "build/freedom-metal/{dut.getDUTName}"
     def metalInstall =
-      generateMetalFromDts dut.getRocketChipDUTDTS dut.getDUTName dut.getDUTCustomOverlay type installDir
+      generateMetalFromDts dut.getRocketChipDUTDTS dut.getDUTName dut.getDUTCustomOverlay type_ installDir
     def gccProgramPlan =
       def outputFile = "{outputDir}/{programCompileOptions.getProgramCompileOptionsName}.elf"
       def newCFiles =
@@ -200,14 +201,14 @@ global def freedomMetalDUTProgramCompiler =
         | setProgramCompileOptionsIncludeDirs newIncludes
       programCompileOptionsToGCCProgramPlan outputFile newCompileOptions
       | setGCCProgramPlanSources driverSources
-    def binary =
+    def binary_ =
       def outputFile = "{outputDir}/{programCompileOptions.getProgramCompileOptionsName}.bin"
       metalInstall
       | rmap (makeFreedomMetalProgram _ gccProgramPlan)
       | rmap (riscv64UnknownElfObjcopy _ outputFile)
       | getPass
       | getOrElse "{name}: failed to compile binary".makeError.makeBadPath
-    makeProgram binary
+    makeProgram binary_
 
   makeProgramCompilerPlan name stdlib toolchain memoryRegion score imp
   | makeProgramCompiler

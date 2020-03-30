@@ -136,14 +136,14 @@ global def doVerilatorCompile options =
     | editPlanFnOutputs (_ _ | filterVerilatorOutputs)
     | runJob
   def makeOutputs = makeJob.getJobOutputs
-  def binary =
+  def binary_ =
     def binaryName = "{outputDir}/{options.getVerilatorCompilePlanPrefix}"
     def findBinary = find (binaryName ==~ _.getPathName) makeOutputs
     match findBinary
       None   = "Unable to find verilator binary: {binaryName}!".makeError.makeBadPath
       Some (Pair b _) = b
 
-  VerilatorCompileOutputs vOutputs.getVerilatorOutputsAllOutputs makeOutputs options binary makeJob
+  VerilatorCompileOutputs vOutputs.getVerilatorOutputsAllOutputs makeOutputs options binary_ makeJob
 
 tuple VerilatorCompileOutputs =
   VerilatorOutputs_:    List Path
@@ -185,7 +185,7 @@ global def doVerilatorExecute options =
 
   def plusargs = namedArgsToCmdline outputDir "+" "=" options.getVerilatorExecutePlanPlusargs
   def extraArgs = namedArgsToCmdline "." "" "" options.getVerilatorExecutePlanExtraArgs
-  def binary = options.getVerilatorExecutePlanCompileOutputs.getVerilatorCompileOutputsBinary
+  def binary_ = options.getVerilatorExecutePlanCompileOutputs.getVerilatorCompileOutputsBinary
   def stderrFile = "{outputDir}/sim.err"
   def stdoutFile = "{outputDir}/sim.out"
   def cmdline =
@@ -194,7 +194,7 @@ global def doVerilatorExecute options =
     relative outputDir stderrFile,
     str options.getVerilatorExecutePlanStdoutTailNum,
     str options.getVerilatorExecutePlanStderrTailNum,
-    "./{relative outputDir binary.getPathName}",
+    "./{relative outputDir binary_.getPathName}",
     (extraArgs ++ plusargs)
 
   def jobResult =

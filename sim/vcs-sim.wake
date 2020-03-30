@@ -61,6 +61,8 @@ def toVCSSimExecutePlan opts compileOutputs outputDir =
   | setVCSExecutePlanExtraArgs    extraArgs
   | setVCSExecutePlanResources    resources
 
+global topic vcsDUTSimCompileOptionsHooks : DUT => Option (PrivateVCSDUTSimCompileOptions => PrivateVCSDUTSimCompileOptions)
+global topic vcsDUTSimExecuteOptionsHooks : DUT => Option (PrivateVCSDUTSimExecuteOptions => PrivateVCSDUTSimExecuteOptions)
 
 # takes a VCSDUTSimulatorPlan and makes a DUTSimulator
 global def makeVCSDUTSimulator plan =

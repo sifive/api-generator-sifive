@@ -33,6 +33,9 @@ tuple SimulationOutput =
   Stdout_:  Result String Error
   Stderr_:  Result String Error
   Status_:  Integer
+  # Only exists for this to be simultaaneously compatible with Wake 0.17 and
+  # 0.18 by forcing this tuple to be globally visible.
+  global Wake0_18_Shim_: Unit
 
 def peelStatus = match _
     Exited a = a
@@ -45,6 +48,7 @@ global def makeSimulationOutput job =
   job.getJobStdout
   job.getJobStderr
   (peelStatus job.getJobStatus)
+  Unit
 
 global def getSimulationOutputOutputs = getSimulationOutputOutputs_
 global def getSimulationOutputStdout  = getSimulationOutputStdout_

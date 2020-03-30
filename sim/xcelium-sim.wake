@@ -68,6 +68,8 @@ def toXceliumSimExecutePlan opts compileOutputs outputDir =
   | setXceliumExecutePlanVisibleFiles   visibleFiles
   | setXceliumExecutePlanExtraArgs      extraArgs
 
+global topic xceliumDUTSimCompileOptionsHooks : DUT => Option (PrivateXceliumDUTSimCompileOptions => PrivateXceliumDUTSimCompileOptions)
+global topic xceliumDUTSimExecuteOptionsHooks : DUT => Option (PrivateXceliumDUTSimExecuteOptions => PrivateXceliumDUTSimExecuteOptions)
 
 # takes a XceliumDUTSimulatorPlan and makes a DUTSimulator
 global def makeXceliumDUTSimulator plan =

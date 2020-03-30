@@ -59,6 +59,8 @@ def toVerilatorSimCompilePlan privateOpts outputDir =
   | setVerilatorCompilePlanPrefix      prefix
   | setVerilatorCompilePlanResources   resources
 
+global topic verilatorDUTSimCompileOptionsHooks : DUT => Option (PrivateVerilatorDUTSimCompileOptions => PrivateVerilatorDUTSimCompileOptions)
+global topic verilatorDUTSimExecuteOptionsHooks : DUT => Option (PrivateVerilatorDUTSimExecuteOptions => PrivateVerilatorDUTSimExecuteOptions)
 
 # execute options that you want to bake into your dut simulator
 tuple PrivateVerilatorDUTSimExecuteOptions =
