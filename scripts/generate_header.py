@@ -176,9 +176,6 @@ def generate_offsets(device_name: str, dev_list: t.List[DeviceBase]) -> str:
             offset = a_reg.offset
             width = a_reg.width
 
-            if name.startswith(group.split('_')[-1] + "_"):
-                group = "_".join(group.split('_')[:-1])
-
             infix = ''
             if group is not "":
                 infix = f'_{group}'
