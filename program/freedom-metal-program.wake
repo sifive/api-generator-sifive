@@ -45,7 +45,7 @@ tuple FreedomBSP =
 
 def getBaseName pathName = replace `^.*/` '' pathName
 
-global target def makeFreedomBSP coreDTS customOverlay type_ prefix machineName =
+global target makeFreedomBSP coreDTS customOverlay type_ prefix machineName =
   # Install base DTS and overlay into the same directory so that the include
   # path is simple and does not include a long, relative path.
   def installedCoreDTS =
