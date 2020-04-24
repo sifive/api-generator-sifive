@@ -27,7 +27,10 @@ global def runVivado plan =
   def runDir = outputDir.getPathName
   def cmdline =
     def noJournal = if plan.getVivadoPlanNoJournal then "-nojournal", Nil else Nil
+    # Provide isolated /dev/shm tmpfs mount to vivado
+    def bwrap = "bwrap",  "--unshare-user", "--dev-bind", "/", "/", "--tmpfs", "/dev/shm", Nil
     def base = "vivado", "-mode", "batch", noJournal
+    bwrap ++
     base ++
     ("-source", relative runDir plan.getVivadoPlanSource.getPathName,
     "-tclargs", plan.getVivadoPlanTclArgs)
@@ -44,6 +47,8 @@ global def runVivado plan =
     filter (matches `.*\.bit` _.getPathName) allOutputs
     | head
     | getOrElse "vivado did not produce a .bit file: {format job.getJobStatus}".makeError.makeBadPath
+  def _ =
+    map println cmdline
   VivadoOutput bitstream allOutputs
 
 global tuple VivadoOutput =
