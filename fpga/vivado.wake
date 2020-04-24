@@ -27,8 +27,9 @@ global def runVivado plan =
   def runDir = outputDir.getPathName
   def cmdline =
     def noJournal = if plan.getVivadoPlanNoJournal then "-nojournal", Nil else Nil
+    def sing = "/singularity/3.5.3/bin/singularity", "--debug", "exec",     "--cleanenv", "--containall", "--writable-tmpfs", "--pwd", "{workspace}/{runDir}", "--bind", "{workspace}", "/sifive/tools/sifive/singularity_images/Vivado_2018.2.sif", "--", Nil
     def base = "vivado", "-mode", "batch", noJournal
-    base ++
+    sing ++ base ++
     ("-source", relative runDir plan.getVivadoPlanSource.getPathName,
     "-tclargs", plan.getVivadoPlanTclArgs)
   def inputs = outputDir, homeDir, plan.getVivadoPlanSource, plan.getVivadoPlanVisibleFiles
@@ -44,6 +45,8 @@ global def runVivado plan =
     filter (matches `.*\.bit` _.getPathName) allOutputs
     | head
     | getOrElse "vivado did not produce a .bit file: {format job.getJobStatus}".makeError.makeBadPath
+  def _ =
+    map println cmdline
   VivadoOutput bitstream allOutputs
 
 global tuple VivadoOutput =
