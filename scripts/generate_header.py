@@ -36,6 +36,14 @@ def walk(j_obj: JSONType) -> t.Iterator[JSONType]:
             yield from walk(j)
 
 
+@dataclass(frozen=True)
+class AddressBlock:
+    """Describes an OMAddressBlock."""
+    name: str
+    baseAddress: int
+    range: int
+    width: int
+
 # Data Classes
 # we pull RegisterFields, Interrupts, and Devices from the Object Model.
 # These are the data classes we use to represent them
@@ -108,6 +116,7 @@ class DeviceBase:
     base_address: int
     interrupts: t.List[Interrupt]
     register_fields: t.List[RegisterField]
+    address_blocks: t.Sequence[AddressBlock]
 
 ###
 # templates
@@ -139,6 +148,11 @@ METAL_BASE_HDR_TMPL = \
     // int bases[${capitalized_device}_COUNT] = ${capitalized_device}_BASES;
 
     #define ${capitalized_device}_BASES {${base_address}}
+
+    // Macros for describing address blocks, which are relative to their
+    // parent memory region.
+
+    ${address_blocks}
 
     // : these macros have control_base as a hidden input
     // use with the _BYTE #define's
@@ -215,6 +229,22 @@ def generate_offsets(device_name: str, dev_list: t.List[DeviceBase]) -> str:
     return '\n'.join(rv)
 
 
+def generate_address_blocks(device_name: str, dev_list: t.List[DeviceBase]) -> str:
+    # Only grab the first device, since we are assuming for now that all the
+    # devices of the same type will have the same address blocks at the same
+    # relative offsets.
+    device = dev_list[0]
+    device_macro = _formatted_for_c_macro(device_name)
+    lines = []
+    for address_block in device.address_blocks:
+        block_macro = _formatted_for_c_macro(address_block.name)
+        # Format in hex with leading 0x
+        base_address = f"{address_block.baseAddress:#x}"
+        lines.extend([
+            f"#define {device_macro}_ADDRESS_BLOCK_{block_macro}_BASE_ADDRESS {base_address}"
+        ])
+    return '\n'.join(lines)
+
 def generate_interrupt_defines(bases: t.List[DeviceBase],
                                device: str) -> str:
     """
@@ -275,6 +305,7 @@ def generate_base_hdr(vendor: str,
         capitalized_device=device.upper(),
         register_offsets=generate_offsets(device, devlist),
         interrupts=interrupts,
+        address_blocks=generate_address_blocks(device, devlist),
     )
 
 
@@ -350,6 +381,18 @@ def find_register_fields(object_model: JSONType) -> t.List[RegisterField]:
 
     return fields
 
+def find_address_blocks(object_model: JSONType) -> t.Sequence[AddressBlock]:
+    """Find all address blocks in a design, returning the empty list if none exist."""
+    return [
+        AddressBlock(
+            name=block['name'],
+            baseAddress=block['baseAddress'],
+            range=block['range'],
+            width=block['width'],
+        )
+        for region in object_model['memoryRegions']
+        for block in region.get('addressBlocks', [])
+    ]
 
 def find_devices(object_model: JSONType,
                  device: str) -> JSONType:
@@ -434,13 +477,15 @@ def main() -> int:
         intlist = find_interrupts(dev_om, device)
         base_int = min((i.number for i in intlist), default=None)
         base_address = dev_om['memoryRegions'][0]['addressSets'][0]['base']
+        address_blocks = find_address_blocks(dev_om)
 
         devlist.append(DeviceBase(name=device,
                                   index=index,
                                   base_interrupt=base_int,
                                   base_address=base_address,
                                   interrupts=intlist,
-                                  register_fields=fields))
+                                  register_fields=fields,
+                                  address_blocks=address_blocks))
 
     base_hdr_path = bsp_dir_path / f'bsp_{device}'
     base_hdr_path.mkdir(exist_ok=True, parents=True)
