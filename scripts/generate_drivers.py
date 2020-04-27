@@ -17,6 +17,21 @@ JSONType = t.Union[PlainJSONType, t.Iterator[PlainJSONType]]
 
 
 @dataclass(frozen=True)
+class AddressBlock:
+    """
+    A DUH address block.
+
+    Note that for legacy reasons, this does not include the registers in the
+    address block. The previous code in this script primarily operated on
+    registers, and introducing a level of hierarchy for the address blocks
+    would require essentially a rewrite of this entire script.
+    """
+    name: str
+    baseAddress: int
+    range: int
+    width: int
+
+@dataclass(frozen=True)
 class RegisterField:
     """
     Description of a bit field within a register.
@@ -39,6 +54,7 @@ class Register:
     offset: int  # in bytes
     width: int  # in bits
     fields: t.List[RegisterField]
+    address_block: AddressBlock
 
     @classmethod
     def make_register(
@@ -47,13 +63,14 @@ class Register:
         offset: int,
         width: int,
         fields: t.List[RegisterField],
+        address_block: AddressBlock,
     ) -> "Register":
         if width not in (8, 16, 32, 64):
             raise Exception(f'Invalid register width {width}, for register '
                             f'{name}.\n'
                             f'Width should be not 8, 16, 32, or 64.\n'
                             f'Please fix the register width in DUH document.')
-        return cls(name, offset, width, fields)
+        return cls(name, offset, width, fields, address_block)
 
 
 ###
@@ -292,19 +309,23 @@ def generate_def_vtable(device: str, reg_list: t.List[Register]) -> str:
     return '\n'.join(rv)
 
 
-def generate_base_functions(device: str, reg_list: t.List[Register]) -> str:
+def generate_base_functions(device: str, reg_list: t.List[Register], include_address_block: bool) -> str:
     """
     Generates the basic, not exported register access functions for
     a given device and register list.
 
     :param device: the name of the device
     :param reg_list: the list of registers for the device.
+    :param include_address_block: If True, include the address block name in
+        the generated C macros.
     :return:  the c code for the register access functions
     """
     cap_device = device.upper()
     rv: t.List[str] = []
 
     for a_reg in reg_list:
+        address_block = a_reg.address_block
+        cap_addr_block_name = address_block.name.upper()
         for field in a_reg.fields:
             name = a_reg.name.lower()
             cap_name = a_reg.name.upper()
@@ -316,7 +337,10 @@ def generate_base_functions(device: str, reg_list: t.List[Register]) -> str:
             # since the existing header macros do not directly tell you the
             # offset of the registers.
 
-            macro_prefix = f"{cap_device}_REGISTER_{cap_name}_{cap_field_name}"
+            if include_address_block:
+                macro_prefix = f"{cap_device}_REGISTER_{cap_addr_block_name}_{cap_name}_{cap_field_name}"
+            else:
+                macro_prefix = f"{cap_device}_REGISTER_{cap_name}_{cap_field_name}"
 
             # Bit offset of field relative to base of device register block
             field_bit_offset_from_base = macro_prefix
@@ -394,7 +418,7 @@ def generate_metal_function(device: str, reg_list: t.List[Register]) -> str:
     return '\n'.join(rv)
 
 
-def generate_metal_dev_drv(vendor, device, index, reglist):
+def generate_metal_dev_drv(vendor, device, index, reglist, include_address_block):
     """
     Generate the driver source file contents for a given device
     and register list
@@ -403,6 +427,8 @@ def generate_metal_dev_drv(vendor, device, index, reglist):
     :param device: the device
     :param index: the index of the device used
     :param reglist: the list of registers
+    :param include_address_block: If True, include the address block name in
+        the generated C macros.
     :return: a string containing of the c code for the basic driver
     """
     template = string.Template(textwrap.dedent(METAL_DEV_DRV_TMPL))
@@ -412,7 +438,8 @@ def generate_metal_dev_drv(vendor, device, index, reglist):
         device=device,
         cap_device=device.upper(),
         index=str(index),
-        base_functions=generate_base_functions(device, reglist),
+        base_functions=generate_base_functions(device, reglist,
+                                               include_address_block),
         metal_functions=generate_metal_function(device, reglist),
         def_vtable=generate_def_vtable(device, reglist)
     )
@@ -495,6 +522,18 @@ def handle_args():
         help="overwrite existing files"
     )
 
+    parser.add_argument(
+        "--always-include-address-block-in-macros",
+        action="store_true",
+        default=False,
+        help=(
+            "If set, always include the address block name in the C macro "
+            " names. By default, the address block name is only included when "
+            "there are multiple address blocks in order to preserve the "
+            "legacy C macro names generated for the single-address block case."
+        )
+    )
+
     return parser.parse_args()
 
 
@@ -505,6 +544,7 @@ def main():
     device = args.device
     m_dir_path = args.metal_dir
     overwrite_existing = args.overwrite_existing
+    always_include_address_block = args.always_include_address_block_in_macros
 
     duh_info = load_json5_with_refs(args.duh_document)
 
@@ -532,7 +572,7 @@ def main():
             bit_width = duh_symbol_table[bit_width]['default']
         return RegisterField.make_field(name, bit_offset, bit_width)
 
-    def interpret_register(a_reg: dict) -> Register:
+    def interpret_register(a_reg: dict, address_block: AddressBlock) -> Register:
         name = a_reg['name']
         offset = a_reg['addressOffset']
         width = a_reg['size']
@@ -542,14 +582,35 @@ def main():
         if isinstance(width, str):
             width = duh_symbol_table[width]['default']
         interpreted_fields = [interpret_register_field(field) for field in fields]
-        return Register.make_register(name, offset, width, interpreted_fields)
+        return Register.make_register(name, offset, width, interpreted_fields, address_block)
+
+    def interpret_address_block(duh_addr_block: dict) -> AddressBlock:
+        return AddressBlock(
+            name=duh_addr_block['name'],
+            baseAddress=duh_addr_block['baseAddress'],
+            range=duh_addr_block['range'],
+            width=duh_addr_block['width'],
+        )
 
     reglist: t.List[Register] = [
-        interpret_register(register)
+        interpret_register(register, interpret_address_block(address_block))
         for memory_map in duh_info['component'].get('memoryMaps', [])
         for address_block in memory_map['addressBlocks']
         for register in address_block.get('registers', [])
     ]
+
+    # When multiple address blocks are present, include the address block name
+    # in the C macros in order to distinguish between registers in different
+    # address blocks.
+    num_address_blocks = len([
+        address_block
+        for memory_map in duh_info['component'].get('memoryMaps', [])
+        for address_block in memory_map['addressBlocks']
+    ])
+    if num_address_blocks > 1 or always_include_address_block:
+        include_address_block = True
+    else:
+        include_address_block = False
 
     m_hdr_path = m_dir_path / device
     m_hdr_path.mkdir(exist_ok=True, parents=True)
@@ -559,7 +620,14 @@ def main():
 
     if overwrite_existing or not driver_file_path.exists():
         driver_file_path.write_text(
-            generate_metal_dev_drv(vendor, device, 0, reglist))
+            generate_metal_dev_drv(
+                vendor,
+                device,
+                0,
+                reglist,
+                include_address_block=include_address_block,
+            )
+        )
     else:
         print(f"{str(driver_file_path)} exists, not creating.",
               file=sys.stderr)
