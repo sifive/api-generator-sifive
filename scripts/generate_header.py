@@ -189,21 +189,28 @@ def generate_offsets(device_name: str, dev_list: t.List[DeviceBase]) -> str:
             offset = a_reg.offset
             width = a_reg.width
 
+            # For legacy reasons, emit both a version of these macros with
+            # and without the address block name.
             infix = ''
-            if addressBlock:
-                infix += f'_{addressBlock}'
             if group:
-                infix += f'_{group}'
+                infix = f'_{group}'
+            legacy_prefix = f'{capitalized_device}_REGISTER{infix}_{name}'
 
-            prefix = f'{capitalized_device}_REGISTER{infix}_{name}'
+            prefixes = [legacy_prefix]
 
-            NAME_COLLISION_DICT[prefix] += 1
-            macro_line =  f'#define {prefix} {offset}\n'
-            macro_line += f'#define {prefix}_BYTE {offset >> 3}\n'
-            macro_line += f'#define {prefix}_BIT {offset & 0x7}\n'
-            macro_line += f'#define {prefix}_WIDTH {width}\n'
+            if addressBlock:
+                infix = f'_{addressBlock}'
+                if group:
+                    infix += f'_{group}'
+                prefixes.append(f'{capitalized_device}_REGISTER{infix}_{name}')
+            for prefix in prefixes:
+                NAME_COLLISION_DICT[prefix] += 1
+                macro_line =  f'#define {prefix} {offset}\n'
+                macro_line += f'#define {prefix}_BYTE {offset >> 3}\n'
+                macro_line += f'#define {prefix}_BIT {offset & 0x7}\n'
+                macro_line += f'#define {prefix}_WIDTH {width}\n'
 
-            rv.append(macro_line)
+                rv.append(macro_line)
 
     return '\n'.join(rv)
 
