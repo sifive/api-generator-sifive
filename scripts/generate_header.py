@@ -49,11 +49,18 @@ class RegisterField:
     offset: int  # in bits
     width: int  # in bits
     regFieldGroup: str
+    addressBlock: str  # Empty string if not set.
     all_registers: t.ClassVar = {}
 
     @staticmethod
-    def make_register(name: str, offset: int, width: int, group: str) \
-            -> "RegisterField":
+    def make_register(
+        name: str,
+        offset: int,
+        width: int,
+        group: str,
+        addressBlock: t.Optional[str] = '',
+    ) -> "RegisterField":
+        addressBlock = addressBlock or ''
         key = f'{name}-{group}'
         if name != 'reserved' and key in RegisterField.all_registers:
             register_field = RegisterField(name, offset, width, group)
@@ -62,7 +69,7 @@ class RegisterField:
             else:
                 return RegisterField.all_registers[key]
 
-        RegisterField.all_registers[key] = RegisterField(name, offset, width, group)
+        RegisterField.all_registers[key] = RegisterField(name, offset, width, group, addressBlock)
         return RegisterField.all_registers[key]
 
 
@@ -153,6 +160,11 @@ METAL_BASE_HDR_TMPL = \
     """
 
 
+def _formatted_for_c_macro(s: str) -> str:
+    """Format and sanitize a string for use in a C macro name."""
+    return s.upper().strip().replace(" ", "")
+
+
 # sub templates
 # generate sub parts of template
 def generate_offsets(device_name: str, dev_list: t.List[DeviceBase]) -> str:
@@ -171,14 +183,17 @@ def generate_offsets(device_name: str, dev_list: t.List[DeviceBase]) -> str:
         for a_reg in dev_list[0].register_fields:
             if a_reg.name == 'reserved':
                 continue
-            name = a_reg.name.upper().strip().replace(" ", "")
-            group = a_reg.regFieldGroup.upper().strip().replace(" ", "")
+            name = _formatted_for_c_macro(a_reg.name)
+            group = _formatted_for_c_macro(a_reg.regFieldGroup)
+            addressBlock = _formatted_for_c_macro(a_reg.addressBlock)
             offset = a_reg.offset
             width = a_reg.width
 
             infix = ''
-            if group is not "":
-                infix = f'_{group}'
+            if addressBlock:
+                infix += f'_{addressBlock}'
+            if group:
+                infix += f'_{group}'
 
             prefix = f'{capitalized_device}_REGISTER{infix}_{name}'
 
@@ -317,10 +332,12 @@ def find_register_fields(object_model: JSONType) -> t.List[RegisterField]:
             r_group = aReg['description']['group']
             r_offset = aReg['bitRange']['base']
             r_width = aReg['bitRange']['size']
+            r_addressBlock = aReg['description'].get('addressBlock')
             r = RegisterField.make_register(r_name,
                                             r_offset,
                                             r_width,
-                                            r_group)
+                                            r_group,
+                                            r_addressBlock)
 
             fields.append(r)
 
