@@ -100,7 +100,7 @@ class DeviceBase:
     base_interrupt: t.Optional[int]
     base_address: int
     interrupts: t.List[Interrupt]
-    registers: t.List[RegisterField]
+    register_fields: t.List[RegisterField]
 
 ###
 # templates
@@ -168,7 +168,7 @@ def generate_offsets(device_name: str, dev_list: t.List[DeviceBase]) -> str:
     capitalized_device = device_name.upper()
     if dev_list:
         # only need to check the first device
-        for a_reg in dev_list[0].registers:
+        for a_reg in dev_list[0].register_fields:
             if a_reg.name == 'reserved':
                 continue
             name = a_reg.name.upper().strip().replace(" ", "")
@@ -297,14 +297,14 @@ def find_interrupts(object_model: JSONType, device: str) \
     return rv
 
 
-def find_registers(object_model: JSONType) -> t.List[RegisterField]:
+def find_register_fields(object_model: JSONType) -> t.List[RegisterField]:
     """
     given a parsed device, return the register fields for the device
 
     :param object_model: a device parsed from the object model
     :return: a list of register fields
     """
-    reglist: t.List[RegisterField] = []
+    fields: t.List[RegisterField] = []
     for mr in object_model['memoryRegions']:
         # get base address for each memory region
         if len(mr['addressSets']) != 1:
@@ -322,9 +322,9 @@ def find_registers(object_model: JSONType) -> t.List[RegisterField]:
                                             r_width,
                                             r_group)
 
-            reglist.append(r)
+            fields.append(r)
 
-    return reglist
+    return fields
 
 
 def find_devices(object_model: JSONType,
@@ -406,7 +406,7 @@ def main() -> int:
     devices_om = find_devices(object_model, device)
 
     for index, dev_om in devices_om:
-        reglist = find_registers(dev_om)
+        fields = find_register_fields(dev_om)
         intlist = find_interrupts(dev_om, device)
         base_int = min((i.number for i in intlist), default=None)
         base_address = dev_om['memoryRegions'][0]['addressSets'][0]['base']
@@ -416,7 +416,7 @@ def main() -> int:
                                   base_interrupt=base_int,
                                   base_address=base_address,
                                   interrupts=intlist,
-                                  registers=reglist))
+                                  register_fields=fields))
 
     base_hdr_path = bsp_dir_path / f'bsp_{device}'
     base_hdr_path.mkdir(exist_ok=True, parents=True)
