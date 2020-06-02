@@ -365,9 +365,15 @@ def find_register_fields(object_model: JSONType) -> t.List[RegisterField]:
                             "region")
 
         # get regs for every memory region
+        if not mr.get('registerMap'):
+            continue
+
         for aReg in mr['registerMap']['registerFields']:
+            r_group = aReg['description'].get('group')
+            if not r_group:
+                continue
+
             r_name = aReg['description']['name']
-            r_group = aReg['description']['group']
             r_offset = aReg['bitRange']['base']
             r_width = aReg['bitRange']['size']
             r_addressBlock = aReg['description'].get('addressBlock')
