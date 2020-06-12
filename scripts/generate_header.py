@@ -71,7 +71,7 @@ class RegisterField:
         addressBlock = addressBlock or ''
         key = f'{name}-{group}'
         if name != 'reserved' and key in RegisterField.all_registers:
-            register_field = RegisterField(name, offset, width, group)
+            register_field = RegisterField(name, offset, width, group, addressBlock)
             if RegisterField.all_registers[key] != register_field:
                 raise Exception(f'Non matching register fields {key}')
             else:
