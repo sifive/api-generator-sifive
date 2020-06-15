@@ -56,10 +56,29 @@ global def bitstreamTarget board dut buildRoot =
 
 global topic dutTests : DUTTest
 
+# Options for configuration a SimTarget. Used with simTargetV2.
+tuple SimTargetOptions =
+  global SimName: String  # Simulator name, e.g. "verilator"
+  global Waves: Boolean  # Enable waveform dumping
+
+  # A filter function for filtering tests that should be run. It should accept a
+  # single DUTTest as an argument, returning True if the test should be run and
+  # False if the test should be skipped.
+  global TestFilter: DUTTest => Boolean
+
+global def makeSimTargetOptions simName waves =
+  def testFilter dutTest =
+    True
+  SimTargetOptions simName waves testFilter
+
 # A target that can be used with runPlatform to run a suite of simulation tests
 # and return a Result indicating whether or not all tests passed.
-global def simTarget dut buildRoot simName waves =
-  def dutTests = subscribe dutTests | filter (_.getDUTTestFilter dut)
+global def simTargetV2 dut buildRoot simTargetOptions =
+  def simName = simTargetOptions.getSimTargetOptionsSimName
+  def waves = simTargetOptions.getSimTargetOptionsWaves
+  def testFilter = simTargetOptions.getSimTargetOptionsTestFilter
+
+  def dutTests = subscribe dutTests | filter (_.getDUTTestFilter dut) | filter testFilter
   def simOutputs =
     dutTests
     | map (
@@ -99,6 +118,14 @@ global def simTarget dut buildRoot simName waves =
     Pass "All tests passed"
   else
     Fail "Some tests failed"
+
+# A target that can be used with runPlatform to run a suite of simulation tests
+# and return a Result indicating whether or not all tests passed.
+#
+# Deprecated: Use simTargetV2 instead.
+global def simTarget dut buildRoot simName waves =
+  def simTargetOptions = makeSimTargetOptions simName waves
+  simTargetV2 dut buildRoot simTargetOptions
 
 global def aggregateTestResults pairs =
   pairs
@@ -230,7 +257,20 @@ def defaultSim = Verilator
 
 global def runSim dut = runSimWith dut defaultSim
 
-global def runSimWith dut sim = runPlatform rocketChipPlatform dut simTarget sim.simulatorToString sim.simulatorToWaves
+global def runSimWith dut sim =
+  def simTargetOptions = makeSimTargetOptions sim.simulatorToString sim.simulatorToWaves
+  runPlatform rocketChipPlatform dut simTargetV2 simTargetOptions
+
+global def runSingleSim dut testName =
+  runSingleSimWith dut testName defaultSim
+
+global def runSingleSimWith dut testName sim =
+  def testFilter dutTest =
+    dutTest.getDUTTestName ==~ testName
+  def simTargetOptions =
+    makeSimTargetOptions sim.simulatorToString sim.simulatorToWaves
+    | setSimTargetOptionsTestFilter testFilter
+  runPlatform rocketChipPlatform dut simTargetV2 simTargetOptions
 
 global def makeRTL dut = runPlatform rocketChipPlatform dut rtlTarget
 
