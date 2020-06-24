@@ -231,7 +231,7 @@ global topic dutSimExecuteOptionsHooks : DUT => Option (DUTSimExecuteOptions => 
 publish dutSimCompileOptionsHooks = rocketChipEICGSimCompileHook, Nil
 
 global def rocketChipEICGSimCompileHook =
-  def rocketChipVsrcs = "rocket-chip/src/main/resources/vsrc"
+  def rocketChipVsrcs = "{rocketChipRoot}/src/main/resources/vsrc"
   makeBlackBoxHook
   "EICG_wrapper"
   (editDUTSimCompileOptionsSourceFiles (source "{rocketChipVsrcs}/EICG_wrapper.v", _))
