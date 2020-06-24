@@ -24,6 +24,36 @@ global def compileSimTarget dut buildRoot =
 global topic vivadoVsrcHooks : (dut: DUT) => Option (Unit => List Path)
 global topic vivadoBlackBoxResources : DUT => Option (List String)
 
+global def fpgaSynthTarget board dut buildRoot =
+  def name = dut.getDUTName
+  def vendor = "xilinx"
+  def tclFiles = filter (matches `.*\.vivado\.tcl` _.getPathName) dut.getDUTSources
+  def vsrcs =
+    subscribe vivadoVsrcHooks
+    | mapPartial (_ dut)
+    | map (_ Unit)
+    | flatten
+    | (dut.getDUTVsrcs ++ _)
+  def resources =
+    subscribe vivadoBlackBoxResources
+    | mapPartial (_ dut)
+    | map (sortBy (_<*_))
+    | flatten
+
+  def topModule = dut.getDUTTopModule
+
+  def visibleFiles =
+    sourcesInDUT `.*\.sdc` dut
+    ++ sourcesInDUT `.*\.xdc` dut
+    ++ sourcesInDUT `.*\.tcl` dut
+
+  makeBitstreamPlan name vendor board topModule buildRoot.getBuildTreeMCSDir
+  | setBitstreamPlanVsrcs vsrcs
+  | editBitstreamPlanResources(resources ++ _)
+  | setBitstreamPlanVisibleFiles visibleFiles
+  | setBitstreamPlanTclFiles tclFiles
+  | fpgaSynthOnly
+
 global def bitstreamTarget board dut buildRoot =
   def name = dut.getDUTName
   def vendor = "xilinx"

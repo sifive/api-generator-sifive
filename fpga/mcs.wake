@@ -19,6 +19,61 @@ def vc707migHook =
   def addResources = "vivado/vc7071gmig/1.0"
   makeBlackBoxHook name addResources
 
+global target fpgaSynthOnly plan =
+  def name = plan.getBitstreamPlanName
+  def resources = plan.getBitstreamPlanResources
+  def outputDir = plan.getBitstreamPlanOutputDir
+  def designTopModule = plan.getBitstreamPlanTopModule
+  def vendor = plan.getBitstreamPlanVendor
+  def board = plan.getBitstreamPlanBoard
+  def visibleFiles = plan.getBitstreamPlanVisibleFiles
+
+  def vivadoSynth =
+    def sourceTcl = source "fpga-shells/{vendor}/common/tcl/synth-only.tcl"
+    def tclFiles = plan.getBitstreamPlanTclFiles
+    def vsrcs = plan.getBitstreamPlanVsrcs
+    def runDir = outputDir
+
+    def ffile =
+      map (relative runDir _.getPathName) vsrcs
+      | catWith "\n"
+      | write "{runDir}/verilog.F"
+
+    def tclArgs =
+      def tclsString =
+        tclFiles
+        | map (relative runDir _.getPathName)
+        | ("{catWith "  " _}")
+      "-top-module",     designTopModule,
+      "-board",          board,
+      "-F",              (relative runDir ffile.getPathName),
+      "-ip-vivado-tcls", tclsString,
+      "-env-var-srcs",   "WAKE_IP_RESOURCE_FILES",
+      Nil
+
+    def fnOutputs _ = files outputDir `.*\.bit`
+
+    def tclSupportFiles =
+      (sources "fpga-shells/{vendor}/{board}/tcl" `.*\.tcl`)
+      ++ (sources "fpga-shells/{vendor}/common/tcl/" `.*\.tcl`)
+      ++ (sources "fpga-shells/{vendor}/{board}/constraints/" `.*\.xdc`)
+
+    def allVisibleFiles =
+      (outputDir.mkdir, ffile, Nil)
+      ++ visibleFiles
+      ++ tclSupportFiles
+      ++ vsrcs
+      ++ tclFiles
+
+    makeVivadoPlan sourceTcl outputDir
+    | setVivadoPlanTclArgs tclArgs
+    | setVivadoPlanResources resources
+    | setVivadoPlanFnOutputs fnOutputs
+    | setVivadoPlanVisibleFiles allVisibleFiles
+    | runVivado
+
+  vivadoSynth
+
 global target makeBitstream plan =
   def name = plan.getBitstreamPlanName
   def resources = plan.getBitstreamPlanResources
