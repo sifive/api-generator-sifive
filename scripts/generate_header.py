@@ -69,11 +69,12 @@ class RegisterField:
         addressBlock: t.Optional[str] = '',
     ) -> "RegisterField":
         addressBlock = addressBlock or ''
-        key = f'{name}-{group}'
+        key = (name, group, addressBlock)
         if name != 'reserved' and key in RegisterField.all_registers:
-            register_field = RegisterField(name, offset, width, group, addressBlock)
-            if RegisterField.all_registers[key] != register_field:
-                raise Exception(f'Non matching register fields {key}')
+            old_field = RegisterField.all_registers[key]
+            new_field = RegisterField(name, offset, width, group, addressBlock)
+            if old_field != new_field:
+                raise Exception(f'Found two register fields with the name but different values: {old_field} != {new_field}')
             else:
                 return RegisterField.all_registers[key]
 
