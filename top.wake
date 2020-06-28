@@ -114,7 +114,9 @@ global def simTargetV2 dut buildRoot simTargetOptions =
 
   def _ = println testReport
 
-  if allPassed then
+  if empty dutTests then
+    Fail "No tests found"
+  else if allPassed then
     Pass "All tests passed"
   else
     Fail "Some tests failed"
