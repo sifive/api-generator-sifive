@@ -19,7 +19,7 @@ def vc707migHook =
   def addResources = "vivado/vc7071gmig/1.0"
   makeBlackBoxHook name addResources
 
-global target fpgaSynthOnly plan =
+global target runFPGASynthOnly plan =
     runVivadoWithPlan plan "fpga-shells/xilinx/common/tcl/synth-only.tcl"
 
 global target makeBitstream plan =
@@ -29,7 +29,7 @@ global target makeBitstream plan =
   vivadoBitstream.getVivadoOutputAllOutputs
   plan
 
-global target runVivadoWithPlan plan tclFile =
+target runVivadoWithPlan plan tclFile =
   def name = plan.getBitstreamPlanName
   def resources = plan.getBitstreamPlanResources
   def outputDir = plan.getBitstreamPlanOutputDir

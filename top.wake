@@ -26,13 +26,13 @@ global topic vivadoBlackBoxResources : DUT => Option (List String)
 
 global def fpgaSynthTarget board dut buildRoot =
   setUpBitstream board dut buildRoot
-  | fpgaSynthOnly
+  | runFPGASynthOnly
 
 global def bitstreamTarget board dut buildRoot =
   setUpBitstream board dut buildRoot
   | makeBitstream
 
-global def setUpBitstream board dut buildRoot =
+def setUpBitstream board dut buildRoot =
   def name = dut.getDUTName
   def vendor = "xilinx"
   def tclFiles = filter (matches `.*\.vivado\.tcl` _.getPathName) dut.getDUTSources
