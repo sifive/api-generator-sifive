@@ -128,20 +128,39 @@ tuple DUTSimExecuteOptions =
   global VisibleFiles:   List Path
   global Resources:      List String # resources to pass to the simulator `Plan`
 
-global def makeDUTSimExecuteOptions = DUTSimExecuteOptions _ _ Nil
+  # Directory for storing coverage data, generally shared across multiple runs
+  # in the same workspace. Should be a path relative to the workspace root.
+  #
+  # E.g. VCS's -cm_dir option or Xcelium's -covworkdir option.
+  global CoverageDir: Option String
+
+  # Name for an individual coverage test run.
+  #
+  # E.g. VCS's -cm_name option or Xcelium's -covtest option.
+  global CoverageTestName: Option String
+
+global def makeDUTSimExecuteOptions = DUTSimExecuteOptions _ _ Nil None None
 
 global def emptyDUTSimExecuteOptions = makeDUTSimExecuteOptions Nil Nil
 
 global def withDUTSimExecuteOptions dut dutSimExecuteOptions = dutSimExecuteOptions
 
-global def appendDUTSimExecuteOptions (DUTSimExecuteOptions plusargs visibleFiles resources) options =
+global def appendDUTSimExecuteOptions (DUTSimExecuteOptions plusargs visibleFiles resources covDir covName) options =
+  # For Option types, we define "append" as let the new value overwrite the old
+  # value if the new value is defined.
   options
   | editDUTSimExecuteOptionsPlusargs     (_ ++ plusargs)
   | editDUTSimExecuteOptionsVisibleFiles (_ ++ visibleFiles)
   | editDUTSimExecuteOptionsResources (_ ++ resources)
+  | editDUTSimExecuteOptionsCoverageDir (\oldDir covDir | orElse oldDir)
+  | editDUTSimExecuteOptionsCoverageTestName (\oldName covName | orElse oldName)
 
-global def prependDUTSimExecuteOptions (DUTSimExecuteOptions plusargs visibleFiles resources) options =
+global def prependDUTSimExecuteOptions (DUTSimExecuteOptions plusargs visibleFiles resources covDir covName) options =
+  # For Option types, we define "prepend" as let the old value take precedence
+  # over the new value if the old value is defined.
   options
   | editDUTSimExecuteOptionsPlusargs     (plusargs ++ _)
   | editDUTSimExecuteOptionsVisibleFiles (visibleFiles ++ _)
   | editDUTSimExecuteOptionsResources    (resources ++ _)
+  | editDUTSimExecuteOptionsCoverageDir (\oldDir oldDir | orElse covDir)
+  | editDUTSimExecuteOptionsCoverageTestName (\oldName oldName | orElse covName)

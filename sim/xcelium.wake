@@ -100,6 +100,12 @@ tuple XceliumExecutePlan =
   global Plusargs:       List NamedArg
   global VisibleFiles:   List Path
   global CompileOutputs: XceliumCompileOutputs
+  # Path to base coverage work directory. Argument to -covworkdir.
+  global CoverageWorkDir: Option String
+  # Directory name for coverage models. Argument to -covscope.
+  global CoverageScope: Option String
+  # Directory name for coverage results for one run. Argument to -covtest.
+  global CoverageTestDir: Option String
 
 global def makeXceliumExecutePlan compileOuts outputDir =
   XceliumExecutePlan
@@ -109,6 +115,9 @@ global def makeXceliumExecutePlan compileOuts outputDir =
   Nil         # Plusargs
   Nil         # VisibleFiles
   compileOuts # CompileOutputs
+  None        # CoverageWorkDir
+  None        # CoverageScopeDir
+  None        # CoverageTestDir
 
 global def doXceliumExecute options =
   def outputDir = options.getXceliumExecutePlanOutputDir

@@ -123,9 +123,11 @@ tuple VCSExecutePlan =
   global StderrTailNum:  Integer
   global StdoutTailNum:  Integer
   global Resources:      List String
+  global CoverageDir: Option String
+  global CoverageTestName: Option String
 
 global def makeVCSExecutePlan compileOutputs outputDir =
-  VCSExecutePlan outputDir Nil Nil compileOutputs Nil 5000 5000 Nil
+  VCSExecutePlan outputDir Nil Nil compileOutputs Nil 5000 5000 Nil None None
 
 global def doVCSExecute options =
   def compileOutputs = options.getVCSExecutePlanCompileOutputs
@@ -143,13 +145,19 @@ global def doVCSExecute options =
   def cmdline =
     def plusargs = namedArgsToCmdline outputDir "+" "=" options.getVCSExecutePlanPlusargs
     def extraArgs = namedArgsToListString outputDir options.getVCSExecutePlanExtraArgs
+    def covDir = match options.getVCSExecutePlanCoverageDir
+      Some dir = "-cm_dir", (relative outputDir dir), Nil
+      None = Nil
+    def covName = match options.getVCSExecutePlanCoverageTestName
+      Some name = "-cm_name", name, Nil
+      None = Nil
     relative outputDir wrapperScript.getPathName,
     relative outputDir stdoutFile,
     relative outputDir stderrFile,
     str options.getVCSExecutePlanStdoutTailNum,
     str options.getVCSExecutePlanStderrTailNum,
     "./{relative outputDir simv.getPathName}",
-    (extraArgs ++ plusargs)
+    (extraArgs ++ covDir ++ covName ++ plusargs)
 
   def jobResult =
     makePlan cmdline inputs

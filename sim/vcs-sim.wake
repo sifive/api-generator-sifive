@@ -54,12 +54,16 @@ def toVCSSimExecutePlan opts compileOutputs outputDir =
   def visibleFiles = genericOpts.getDUTSimExecuteOptionsVisibleFiles
   def resources    = genericOpts.getDUTSimExecuteOptionsResources
   def extraArgs    = opts.getPrivateVCSDUTSimExecuteOptionsExtraArgs
+  def covDir       = genericOpts.getDUTSimExecuteOptionsCoverageDir
+  def covName      = genericOpts.getDUTSimExecuteOptionsCoverageTestName
 
   makeVCSExecutePlan compileOutputs outputDir
   | setVCSExecutePlanPlusargs     plusargs
   | setVCSExecutePlanVisibleFiles visibleFiles
   | setVCSExecutePlanExtraArgs    extraArgs
   | setVCSExecutePlanResources    resources
+  | setVCSExecutePlanCoverageDir covDir
+  | setVCSExecutePlanCoverageTestName covName
 
 global topic vcsDUTSimCompileOptionsHooks : DUT => Option (PrivateVCSDUTSimCompileOptions => PrivateVCSDUTSimCompileOptions)
 global topic vcsDUTSimExecuteOptionsHooks : DUT => Option (PrivateVCSDUTSimExecuteOptions => PrivateVCSDUTSimExecuteOptions)

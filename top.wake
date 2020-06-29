@@ -164,6 +164,11 @@ def singleSimOutput simName waves dut buildRoot dutTest =
     | getDUTSimulationOptions
     | runSimulationBootloader dut bootloaderOptions bootloader
     | editDUTSimulationOptionsExecuteOptions (editDUTSimExecuteOptionsPlusargs (testPlusargs ++ _))
+    | editDUTSimulationOptionsExecuteOptions (
+      \execOpts
+      execOpts
+      | setDUTSimExecuteOptionsCoverageTestName (Some dutTest.getDUTTestName)
+    )
 
   def bootloader = dutTest.getDUTTestBootloader
 
