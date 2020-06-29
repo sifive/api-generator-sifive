@@ -219,7 +219,23 @@ def generate_offsets(device_name: str, dev_list: t.List[DeviceBase]) -> str:
                     infix += f'_{group}'
                 prefixes.append(f'{capitalized_device}_REGISTER{infix}_{name}')
             for prefix in prefixes:
+                # If we would have a name conflict in the legacy prefix naming
+                # scheme, due to two registers in different address blocks
+                # having the same name, then do not emit the conflicting name a
+                # second time.
+                #
+                # In the case where we do not have naming conflicts, it is
+                # still safe to emit both sets of prefixes. This will allow for
+                # backwards compatibility for any code that still uses the
+                # legacy version of the prefix that has no address block in the
+                # name.
+                #
+                # All the conflicts are still printed out at the end of this
+                # script anyway, so the risk of this silently doing something
+                # surprising is low.
                 NAME_COLLISION_DICT[prefix] += 1
+                if prefix == legacy_prefix and NAME_COLLISION_DICT[prefix] > 1:
+                    continue
                 macro_line =  f'#define {prefix} {offset}\n'
                 macro_line += f'#define {prefix}_BYTE {offset >> 3}\n'
                 macro_line += f'#define {prefix}_BIT {offset & 0x7}\n'
