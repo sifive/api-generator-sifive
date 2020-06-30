@@ -24,7 +24,15 @@ global def compileSimTarget dut buildRoot =
 global topic vivadoVsrcHooks : (dut: DUT) => Option (Unit => List Path)
 global topic vivadoBlackBoxResources : DUT => Option (List String)
 
+global def fpgaSynthTarget board dut buildRoot =
+  setUpBitstream board dut buildRoot
+  | runFPGASynthOnly
+
 global def bitstreamTarget board dut buildRoot =
+  setUpBitstream board dut buildRoot
+  | makeBitstream
+
+def setUpBitstream board dut buildRoot =
   def name = dut.getDUTName
   def vendor = "xilinx"
   def tclFiles = filter (matches `.*\.vivado\.tcl` _.getPathName) dut.getDUTSources
@@ -52,7 +60,6 @@ global def bitstreamTarget board dut buildRoot =
   | editBitstreamPlanResources(resources ++ _)
   | setBitstreamPlanVisibleFiles visibleFiles
   | setBitstreamPlanTclFiles tclFiles
-  | makeBitstream
 
 global topic dutTests : DUTTest
 
