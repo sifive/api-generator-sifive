@@ -20,10 +20,10 @@ def vc707migHook =
   makeBlackBoxHook name addResources
 
 global target runFPGASynthOnly plan =
-    runVivadoWithPlan plan "fpga-shells/xilinx/common/tcl/synth-only.tcl"
+    runVivadoWithPlan plan "{fpgaShellsRoot}/xilinx/common/tcl/synth-only.tcl"
 
 global target makeBitstream plan =
-  def vivadoBitstream = runVivadoWithPlan plan  "fpga-shells/xilinx/common/tcl/vivado.tcl"
+  def vivadoBitstream = runVivadoWithPlan plan  "{fpgaShellsRoot}/xilinx/common/tcl/vivado.tcl"
   BitstreamOutputs
   vivadoBitstream.getVivadoOutputBitstream
   vivadoBitstream.getVivadoOutputAllOutputs
@@ -63,9 +63,9 @@ target runVivadoWithPlan plan tclFile =
   def fnOutputs _ = files outputDir `.*\.bit`
 
   def tclSupportFiles =
-    (sources "fpga-shells/{vendor}/{board}/tcl" `.*\.tcl`)
-    ++ (sources "fpga-shells/{vendor}/common/tcl/" `.*\.tcl`)
-    ++ (sources "fpga-shells/{vendor}/{board}/constraints/" `.*\.xdc`)
+    (sources "{fpgaShellsRoot}/{vendor}/{board}/tcl" `.*\.tcl`)
+    ++ (sources "{fpgaShellsRoot}/{vendor}/common/tcl/" `.*\.tcl`)
+    ++ (sources "{fpgaShellsRoot}/{vendor}/{board}/constraints/" `.*\.xdc`)
 
   def allVisibleFiles =
     (outputDir.mkdir, ffile, Nil)
@@ -109,7 +109,7 @@ global def makeMCS plan =
 
   def outputFile = "{outputDir}/{board}.{name}.mcs"
   def vivadoMCS =
-    def sourceTcl = source "fpga-shells/{vendor}/common/tcl/write_cfgmem.tcl"
+    def sourceTcl = source "{fpgaShellsRoot}/{vendor}/common/tcl/write_cfgmem.tcl"
     def tclArgs =
       board,
       relative outputDir outputFile,
@@ -117,8 +117,8 @@ global def makeMCS plan =
       map (relative outputDir _.getPathName) programImgList
 
     def tclSupportFiles =
-      (sources "fpga-shells/{vendor}/{board}/tcl" `.*\.tcl`)
-      ++ (sources "fpga-shells/{vendor}/common/tcl" `.*\.tcl`)
+      (sources "{fpgaShellsRoot}/{vendor}/{board}/tcl" `.*\.tcl`)
+      ++ (sources "{fpgaShellsRoot}/{vendor}/common/tcl" `.*\.tcl`)
 
     makeVivadoPlan sourceTcl outputDir
     | setVivadoPlanTclArgs tclArgs
