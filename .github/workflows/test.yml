@@ -1,0 +1,39 @@
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # $WIT_WORKSPACE path is relative to $GITHUB_WORKSPACE
+      WIT_WORKSPACE: wit-workspace
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: wit-packages/api-generator-sifive
+        # Fetch all history and tags
+        fetch-depth: 0
+
+    - name: 'Wit Init'
+      # This commit is slightly past v0.13.0
+      # It adds /bin/bash to the docker container
+      uses: sifive/wit/actions/wit@97adca314832cefe4a4b609191699811def37be9
+      with:
+        command: init
+        arguments: |
+          ${{ env.WIT_WORKSPACE }}
+          -a ./wit-packages/api-generator-sifive
+          -a git@github.com:sifive/environment-blockci-sifive.git::0.4.0
+        force_github_https: true
+
+    - name: Run tests
+      run: |
+        set -euo pipefail
+        docker run \
+          --volume="$GITHUB_WORKSPACE/$WIT_WORKSPACE:/mnt/workspace" \
+          --workdir="/mnt/workspace" \
+          --rm \
+          sifive/environment-blockci:0.4.0 \
+          api-generator-sifive/continuous-integration/run-tests.sh
