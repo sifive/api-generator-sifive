@@ -115,6 +115,10 @@ class DeviceBase:
     index: int
     base_interrupt: t.Optional[int]
     base_address: int
+    # Mapping from name (as described in the OMMemoryRegion.description field)
+    # and base address. Note that the description field is in practice more
+    # like a name, not a description.
+    base_addresses: t.List[t.Tuple[str, int]]
     interrupts: t.List[Interrupt]
     register_fields: t.List[RegisterField]
     address_blocks: t.Sequence[AddressBlock]
@@ -136,6 +140,7 @@ METAL_BASE_HDR_TMPL = \
     
     #define ${capitalized_device}_COUNT ${dev_count}
 
+    // Number of the base (lowest-value) interrupt for this device.
     // To use ${capitalized_device}_INTERRUPT_BASES, use it as the
     // initializer to an array of ints, i.e.
     // int interrupt_bases[${capitalized_device}_COUNT] = ${capitalized_device}_INTERRUPT_BASES;
@@ -144,11 +149,15 @@ METAL_BASE_HDR_TMPL = \
     
     ${interrupts}
 
+    // Base addresses of the first memory region of each instance of this device.
     // To use ${capitalized_device}_BASES, use it as the
     // initializer to an array of ints, i.e.
     // int bases[${capitalized_device}_COUNT] = ${capitalized_device}_BASES;
 
     #define ${capitalized_device}_BASES {${base_address}}
+
+    // Base addresses of each memory region of each instance of this device.
+    ${base_addresses}
 
     // Macros for describing address blocks, which are relative to their
     // parent memory region.
@@ -297,6 +306,42 @@ def generate_interrupt_defines(bases: t.List[DeviceBase],
     return '\n'.join(rv)
 
 
+def generate_base_addresses(device_name: str, dev_list: t.List[DeviceBase]) -> str:
+    """
+    Generate the base address C macros.
+
+    One macro is generated per memory region in the device. Each macro contains
+    an array of base addresses, one per instance of the device in the design.
+
+    :param device_name: the name of the device
+    :param dev_list: the list of devices for the SOC
+    :return: A snippet of C that includes the macros.
+    """
+    num_regions = len(dev_list[0].base_addresses)
+    for device in dev_list:
+        assert len(device.base_addresses) == num_regions, \
+            f"Expected each instance of {device_name} to have the same number of memory regions. "\
+            f"Expected {num_regions}; got {len(device.base_addresses)}"
+
+    # e.g. [("control", [0x4000, 0x8000]), ("reg", [0x4100, 0x8100])]
+    base_addresses_grouped_by_memory_region_type = []
+    for i, (region_name, _) in enumerate(dev_list[0].base_addresses):
+        base_addresses = []
+        for device in dev_list:
+            (_, base_address) = device.base_addresses[i]
+            base_addresses.append(base_address)
+        base_addresses_grouped_by_memory_region_type.append((region_name, base_addresses))
+
+    macros = []
+    for region_name, base_addresses in base_addresses_grouped_by_memory_region_type:
+        formatted_region_name = region_name.replace(" ", "_").upper()
+        macro_name = f"{device_name.upper()}_{formatted_region_name}_BASES"
+        addresses = ", ".join(hex(addr) + "ULL" for addr in base_addresses)
+        macros.append(f"#define {macro_name} {{ {addresses} }}")
+
+    return '\n'.join(macros)
+
+
 def generate_base_hdr(vendor: str,
                       device: str,
                       devlist: t.List[DeviceBase]):
@@ -316,6 +361,7 @@ def generate_base_hdr(vendor: str,
 
     return template.substitute(
         base_address=base,
+        base_addresses=generate_base_addresses(device_name=device, dev_list=devlist),
         dev_count=len(devlist),
         vendor=vendor,
         device=device,
@@ -500,12 +546,17 @@ def main() -> int:
         intlist = find_interrupts(dev_om, device)
         base_int = min((i.number for i in intlist), default=None)
         base_address = dev_om['memoryRegions'][0]['addressSets'][0]['base']
+        base_addresses = [
+            (region['description'], region['addressSets'][0]['base'])
+            for region in dev_om['memoryRegions']
+        ]
         address_blocks = find_address_blocks(dev_om)
 
         devlist.append(DeviceBase(name=device,
                                   index=index,
                                   base_interrupt=base_int,
                                   base_address=base_address,
+                                  base_addresses=base_addresses,
                                   interrupts=intlist,
                                   register_fields=fields,
                                   address_blocks=address_blocks))
