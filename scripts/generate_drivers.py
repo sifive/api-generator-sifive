@@ -77,7 +77,8 @@ class Register:
 # templates
 ###
 def generate_vtable_declarations(device_name: str,
-                                 reg_list: t.List[Register]) -> str:
+                                 reg_list: t.List[Register],
+                                 include_address_block: bool) -> str:
     """
     Generate the vtable entries for a device and set of registers. This
     creates the declarations for function pointers for all the driver functions.
@@ -85,18 +86,24 @@ def generate_vtable_declarations(device_name: str,
     for multiple devices.
     :param device_name: the name of the device
     :param reg_list: a list of Register objects for the device
+    :param include_address_block: If True, include the address block name in
+        the generated C function prototypes.
     :return: the c code for the vtable entries
     """
 
     rv = []
 
     for a_reg in reg_list:
+        address_block_name = a_reg.address_block.name.lower()
         for field in a_reg.fields:
             reg_name = a_reg.name.lower()
             field_name = field.name.lower()
             size = a_reg.width
 
-            func_name_prefix = f'v_{device_name}_{reg_name}_{field_name}'
+            if include_address_block:
+                func_name_prefix = f'v_{device_name}_{address_block_name}_{reg_name}_{field_name}'
+            else:
+                func_name_prefix = f'v_{device_name}_{reg_name}_{field_name}'
 
             write_func = f'    void (*{func_name_prefix}_write)(uint32_t * {device_name}_base, uint{size}_t data);'
             read_func = f'    uint{size}_t (*{func_name_prefix}_read)(uint32_t  *{device_name}_base);'
@@ -120,12 +127,14 @@ def generate_metal_vtable_definition(devices_name: str) -> str:
            f'    struct metal_{devices_name}_vtable vtable;'
 
 
-def generate_protos(device_name: str, reg_list: t.List[Register]) -> str:
+def generate_protos(device_name: str, reg_list: t.List[Register], include_address_block: bool) -> str:
     """
     Generate the function prototypes for a given device and register list.
 
     :param device_name: The device name
     :param reg_list: the list of registers for the device
+    :param include_address_block: If True, include the address block name in
+        the generated C function prototypes.
     :return: the c language prototypes for the device
     """
 
@@ -134,12 +143,17 @@ def generate_protos(device_name: str, reg_list: t.List[Register]) -> str:
     dev_struct = f'const struct metal_{device_name} *{device_name}'
 
     for a_reg in reg_list:
+        address_block_name = a_reg.address_block.name.lower()
         for field in a_reg.fields:
             reg_name = a_reg.name.lower()
             field_name = field.name.lower()
             size = a_reg.width
 
-            func_name_prefix = f'metal_{device_name}_{reg_name}_{field_name}'
+            if include_address_block:
+                func_name_prefix = f'metal_{device_name}_{address_block_name}_{reg_name}_{field_name}'
+            else:
+                func_name_prefix = f'metal_{device_name}_{reg_name}_{field_name}'
+
             write_func = f'void {func_name_prefix}_write({dev_struct}, uint{size}_t data);'
             read_func = f'uint{size}_t {func_name_prefix}_read({dev_struct});'
 
@@ -182,7 +196,7 @@ METAL_DEV_HDR_TMPL = \
     """
 
 
-def generate_metal_dev_hdr(vendor, device, index, reglist):
+def generate_metal_dev_hdr(vendor, device, index, reglist, include_address_block: bool):
     """
 
     :param vendor: The name of the vendor creating the device
@@ -199,9 +213,10 @@ def generate_metal_dev_hdr(vendor, device, index, reglist):
         cap_device=device.upper(),
         index=str(index),
         # base_address=hex(base_address),
-        vtable=generate_vtable_declarations(device, reglist),
+        vtable=generate_vtable_declarations(device, reglist,
+                                            include_address_block=include_address_block),
         metal_device=generate_metal_vtable_definition(device),
-        protos=generate_protos(device, reglist)
+        protos=generate_protos(device, reglist, include_address_block=include_address_block)
     )
 
 
@@ -257,7 +272,7 @@ METAL_DEV_DRV_TMPL = \
     struct metal_${device}* ${device}_tables[${cap_device}_COUNT];
     uint8_t ${device}_tables_cnt = ${cap_device}_COUNT;
 
-    void init_devices()
+    static void init_devices()
     {
         uint32_t bases[]=${cap_device}_BASES;
         int i;
@@ -284,23 +299,30 @@ METAL_DEV_DRV_TMPL = \
     """
 
 
-def generate_def_vtable(device: str, reg_list: t.List[Register]) -> str:
+def generate_def_vtable(device: str, reg_list: t.List[Register], include_address_block: bool) -> str:
     """
     Generate vtable settings for vtable declaration in .c file
 
     :param device: the name of the device
     :param reg_list: the register list for the device
+    :param include_address_block: If True, include the address block name in
+        the generated C function prototypes.
     :return: the declarations in the vtable for the driver .c file
     """
     rv: t.List[str] = []
     head = f'metal_{device}s[i].{device}_base = bases[i];'
     rv.append(head)
     for a_reg in reg_list:
+        address_block_name = a_reg.address_block.name.lower()
         for field in a_reg.fields:
             reg_name = a_reg.name.lower()
             field_name = field.name.lower()
-            vtable_prefix = f'v_{device}_{reg_name}_{field_name}'
-            base_func_prefix = f'{device}_{reg_name}_{field_name}'
+            if include_address_block:
+                vtable_prefix = f'v_{device}_{address_block_name}_{reg_name}_{field_name}'
+                base_func_prefix = f'{device}_{address_block_name}_{reg_name}_{field_name}'
+            else:
+                vtable_prefix = f'v_{device}_{reg_name}_{field_name}'
+                base_func_prefix = f'{device}_{reg_name}_{field_name}'
             write_func = f'{" " * 8}metal_{device}s[i].vtable.{vtable_prefix}_write = {base_func_prefix}_write;'
             read_func = f'{" " * 8}metal_{device}s[i].vtable.{vtable_prefix}_read = {base_func_prefix}_read;'
             rv.append(write_func)
@@ -325,6 +347,7 @@ def generate_base_functions(device: str, reg_list: t.List[Register], include_add
 
     for a_reg in reg_list:
         address_block = a_reg.address_block
+        address_block_name = address_block.name.lower()
         cap_addr_block_name = address_block.name.upper()
         for field in a_reg.fields:
             name = a_reg.name.lower()
@@ -339,8 +362,10 @@ def generate_base_functions(device: str, reg_list: t.List[Register], include_add
 
             if include_address_block:
                 macro_prefix = f"{cap_device}_REGISTER_{cap_addr_block_name}_{cap_name}_{cap_field_name}"
+                func_prefix = f"{device}_{address_block_name}_{name}_{field_name}"
             else:
                 macro_prefix = f"{cap_device}_REGISTER_{cap_name}_{cap_field_name}"
+                func_prefix = f"{device}_{name}_{field_name}"
 
             # Bit offset of field relative to base of device register block
             field_bit_offset_from_base = macro_prefix
@@ -353,7 +378,7 @@ def generate_base_functions(device: str, reg_list: t.List[Register], include_add
             field_width = f"{macro_prefix}_WIDTH"
 
             write_func = f"""
-                void {device}_{name}_{field_name}_write(uint32_t *{device}_base, uint{size}_t data)
+                void {func_prefix}_write(uint32_t *{device}_base, uint{size}_t data)
                 {{
                     uintptr_t control_base = (uintptr_t){device}_base;
                     volatile uint32_t *register_base = (uint32_t *)(control_base + {reg_byte_offset});
@@ -364,7 +389,7 @@ def generate_base_functions(device: str, reg_list: t.List[Register], include_add
             rv.append(textwrap.dedent(write_func))
 
             read_func = f"""
-                uint{size}_t {device}_{name}_{field_name}_read(uint32_t *{device}_base)
+                uint{size}_t {func_prefix}_read(uint32_t *{device}_base)
                 {{
                     uintptr_t control_base = (uintptr_t){device}_base;
                     volatile uint32_t *register_base = (uint32_t *)(control_base + {reg_byte_offset});
@@ -377,38 +402,46 @@ def generate_base_functions(device: str, reg_list: t.List[Register], include_add
     return '\n'.join(rv)
 
 
-def generate_metal_function(device: str, reg_list: t.List[Register]) -> str:
+def generate_metal_function(device: str, reg_list: t.List[Register], include_address_block: bool) -> str:
     """
     Generates the exported register access functions for
     a given device and register list.
 
     :param device: the name of the device
     :param reg_list: the list of registers for the device.
+    :param include_address_block: If True, include the address block name in
+        the generated C function prototypes.
     :return:  the c code for the exported register access functions
     """
 
     rv: t.List[str] = []
 
     for a_reg in reg_list:
+        address_block_name = a_reg.address_block.name.lower()
         for field in a_reg.fields:
             name = a_reg.name.lower()
             field_name = field.name.lower()
             size = a_reg.width
 
+            if include_address_block:
+                func_name = f"{device}_{address_block_name}_{name}_{field_name}"
+            else:
+                func_name = f"{device}_{name}_{field_name}"
+
             write_func = f"""
-                void metal_{device}_{name}_{field_name}_write(const struct metal_{device} *{device}, uint{size}_t data)
+                void metal_{func_name}_write(const struct metal_{device} *{device}, uint{size}_t data)
                 {{
                     if ({device} != NULL)
-                        {device}->vtable.v_{device}_{name}_{field_name}_write({device}->{device}_base, data);
+                        {device}->vtable.v_{func_name}_write({device}->{device}_base, data);
                 }}
                 """
             rv.append(textwrap.dedent(write_func))
 
             read_func = f"""
-                uint{size}_t metal_{device}_{name}_{field_name}_read(const struct metal_{device} *{device})
+                uint{size}_t metal_{func_name}_read(const struct metal_{device} *{device})
                 {{
                     if ({device} != NULL)
-                        return {device}->vtable.v_{device}_{name}_{field_name}_read({device}->{device}_base);
+                        return {device}->vtable.v_{func_name}_read({device}->{device}_base);
                     return (uint{size}_t)-1;
                 }}
                 """
@@ -428,7 +461,7 @@ def generate_metal_dev_drv(vendor, device, index, reglist, include_address_block
     :param index: the index of the device used
     :param reglist: the list of registers
     :param include_address_block: If True, include the address block name in
-        the generated C macros.
+        the generated C macros and function prototypes.
     :return: a string containing of the c code for the basic driver
     """
     template = string.Template(textwrap.dedent(METAL_DEV_DRV_TMPL))
@@ -440,8 +473,9 @@ def generate_metal_dev_drv(vendor, device, index, reglist, include_address_block
         index=str(index),
         base_functions=generate_base_functions(device, reglist,
                                                include_address_block),
-        metal_functions=generate_metal_function(device, reglist),
-        def_vtable=generate_def_vtable(device, reglist)
+        metal_functions=generate_metal_function(device, reglist,
+                                                include_address_block),
+        def_vtable=generate_def_vtable(device, reglist, include_address_block)
     )
 
 
@@ -634,7 +668,7 @@ def main():
 
     if overwrite_existing or not header_file_path.exists():
         header_file_path.write_text(
-            generate_metal_dev_hdr(vendor, device, 0, reglist))
+            generate_metal_dev_hdr(vendor, device, 0, reglist, include_address_block))
     else:
         print(f"{str(header_file_path)} exists, not creating.",
               file=sys.stderr)
