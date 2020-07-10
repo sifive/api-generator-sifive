@@ -39,6 +39,8 @@ def toVCSSimCompilePlan privateOpts outputDir =
   | setVCSCompilePlanLibraryDirs (libraryDirs ++ extraLibraryDirs)
   | setVCSCompilePlanDefines     defines
   | setVCSCompilePlanPlusargs    plusargs
+  # TODO: Add some user-configurable way to enable/disable coverage
+  | setVCSCompilePlanCoverageMetrics defaultCoverageMetrics
 
 tuple PrivateVCSDUTSimExecuteOptions =
   global DUTOpts:   DUTSimExecuteOptions
@@ -62,8 +64,10 @@ def toVCSSimExecutePlan opts compileOutputs outputDir =
   | setVCSExecutePlanVisibleFiles visibleFiles
   | setVCSExecutePlanExtraArgs    extraArgs
   | setVCSExecutePlanResources    resources
-  | setVCSExecutePlanCoverageDir covDir
+  #| setVCSExecutePlanCoverageDir covDir
+  | setVCSExecutePlanCoverageDir (Some "{outputDir}/coverage")
   | setVCSExecutePlanCoverageTestName covName
+  | setVCSExecutePlanCoverageMetrics defaultCoverageMetrics
 
 global topic vcsDUTSimCompileOptionsHooks : DUT => Option (PrivateVCSDUTSimCompileOptions => PrivateVCSDUTSimCompileOptions)
 global topic vcsDUTSimExecuteOptionsHooks : DUT => Option (PrivateVCSDUTSimExecuteOptions => PrivateVCSDUTSimExecuteOptions)
@@ -174,6 +178,13 @@ def vcsExecuteOptsExtract waves dut =
   | editPrivateVCSDUTSimExecuteOptionsDUTOpts genericOpts.appendDUTSimExecuteOptions
   | editPrivateVCSDUTSimExecuteOptionsExtraArgs withExtraArgs
   | withWavesOptions
+
+def defaultCoverageMetrics =
+  makeVCSCoverageMetrics
+  | setVCSCoverageMetricsLine True
+  | setVCSCoverageMetricsTgl True
+  | setVCSCoverageMetricsBranch True
+  | setVCSCoverageMetricsAssert True
 
 def makeFreedomVCSDUTSimulator waves =
   def name = "vcs"
