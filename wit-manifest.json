@@ -15,18 +15,19 @@
         "source": "git@github.com:chipsalliance/rocket-chip.git"
     },
     {
-        "commit": "96cdaf23a35173c156fe7a986c33d34c70fc81fe",
+        "//": "This commit is v0.2.1",
+        "commit": "e46103f52166bfde4ba33ff048937b896e6235d1",
         "name": "api-languages-sifive",
         "source": "git@github.com:sifive/api-languages-sifive.git"
     },
     {
-        "//": "This commit is v0.1.4",
-        "commit": "081e45cb46f65ad6a0e251f357e995d2a795b4c7",
+        "//": "This commit is v0.1.5",
+        "commit": "df72f3c1d7fcadde3579befe1d7a05eed334c56f",
         "name": "scribble-testsocket-sifive",
         "source": "git@github.com:sifive/scribble-testsocket-sifive.git"
     },
     {
-        "commit": "4e3d67ca1ebac7fa9956558f03d964bded1f5653",
+        "commit": "6b8201670e686277f2e3e8af2d5ef78d42900b13",
         "name": "devicetree-overlay-generator",
         "source": "git@github.com:sifive/devicetree-overlay-generator.git"
     },
