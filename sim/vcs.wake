@@ -78,13 +78,8 @@ global def doVCSCompile options =
     def rawTmpDir = options.getVCSCompilePlanTmpDir
     def tmpDir = mkdir rawTmpDir
     "TMPDIR={relative outputDir tmpDir.getPathName}"
-  def foutputs _ =
-    "{outputDir}/simv", "{outputDir}/vc_hdrs.h",
-    files "{outputDir}/simv.daidir" `.*`
   def vcsJob =
     makePlan cmdline inputs
-    | setPlanLocalOnly True
-    | setPlanFnOutputs foutputs
     | setPlanDirectory outputDir
     | setPlanResources options.getVCSCompilePlanResources
     | runJob
