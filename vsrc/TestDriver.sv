@@ -55,6 +55,7 @@ module TestDriver (
 
   // Read input arguments and initialize
   bit               verbose     = |($test$plusargs("verbose"));
+  bit               genfsdb     = |($test$plusargs("genfsdb"));
   bit               printf_cond;
   longint unsigned  max_cycles  = '1; // default value is max-longint
   string            vcdplusfile = "";
@@ -72,10 +73,19 @@ module TestDriver (
       `ifdef DEBUG
         `ifdef VCS
           // flush or write all the simulation results in memory to the VPD file
-          $vcdplusflush();
+          if (genfsdb == 1'b1) begin
+          `ifdef DEBUGFSDB
+            $fsdbDumpflush();
+          `endif
+          end else $vcdplusflush();
           if (close == 1'b1) begin
             // mark the current VPD file as completed and close the file
-            $vcdplusclose();
+            if (genfsdb == 1'b1) begin
+            `ifdef DEBUGFSDB
+              $fsdbDumpoff;
+              $fsdbDumpFinish();
+            `endif
+            end else $vcdplusclose();
           end
 
         `else // ~VCS
@@ -107,13 +117,22 @@ module TestDriver (
     if ($value$plusargs("vcdplusfile=%s", vcdplusfile))
     begin
 `ifdef VCS
-      $vcdplusfile(vcdplusfile);
-      $vcdpluson(0);
-      $vcdplusmemon(0);
-      // flush or write all the simulation results in memory to the VPD file
-      // whenever there is an interrupt, such as when VCS executes a $stop
-      // system task
-      $vcdplusautoflushon();
+      if (genfsdb == 1'b1) begin
+      `ifdef DEBUGFSDB
+        string            fsdbfilename = "";
+        if ($value$plusargs("fsdbfile=%s", fsdbfilename)) $fsdbDumpfile(fsdbfilename);
+        else $fsdbDumpfile("sim.fsdb");
+        $fsdbDumpvars(0);
+      `endif
+      end else begin
+        $vcdplusfile(vcdplusfile);
+        $vcdpluson(0);
+        $vcdplusmemon(0);
+        // flush or write all the simulation results in memory to the VPD file
+        // whenever there is an interrupt, such as when VCS executes a $stop
+        // system task
+        $vcdplusautoflushon();
+      end
 `else
       $fdisplay(STDERR_fh, "Error: +vcdplusfile is VCS-only; use +vcdfile instead");
       $fatal(1);
@@ -162,7 +181,11 @@ module TestDriver (
         if (verbose &&
            ((trace_count % 100000 < 1) ||
            ((trace_count % 10000 < 1)  && (trace_count < 50000)))) begin
-           $vcdplusflush();
+          if (genfsdb == 1'b1) begin
+          `ifdef DEBUGFSDB
+            $fsdbDumpflush();
+          `endif
+          end else $vcdplusflush();
         end
      end
   `endif
