@@ -1,4 +1,13 @@
 global def getBestImpForPlan plan filterGetter scoreGetter imps =
+  match (getBestImpForPlanV2 plan filterGetter scoreGetter imps)
+    Some imp = imp
+    None = panic "No valid implementation for plan: {format plan}"
+
+global def applyBestImpForPlan plan filterGetter scoreGetter imps =
+  plan | getBestImpForPlan plan filterGetter scoreGetter imps
+
+# Like getBestImpForPlan except it returns an Option instead of panicking.
+global def getBestImpForPlanV2 plan filterGetter scoreGetter imps =
   def keepGreater (Pair prevScore prevImp) currImp =
     def currScore = currImp.scoreGetter plan
     if currScore >. prevScore
@@ -8,8 +17,5 @@ global def getBestImpForPlan plan filterGetter scoreGetter imps =
   match filtered
     h, _ =
       def firstPair = Pair (h.scoreGetter plan) h
-      foldl keepGreater firstPair filtered.tail | getPairSecond
-    Nil  = panic "No valid implementation for plan: {format plan}"
-
-global def applyBestImpForPlan plan filterGetter scoreGetter imps =
-  plan | getBestImpForPlan plan filterGetter scoreGetter imps
+      Some (foldl keepGreater firstPair filtered.tail | getPairSecond)
+    Nil  = None

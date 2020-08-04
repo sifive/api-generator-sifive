@@ -1,12 +1,14 @@
 tuple XceliumDUTSimulatorPlan =
   global TestDriver:     String
   global Waves:          Boolean
+  global Coverage:       Boolean
   global Score:          DUT => DUTSimCompileOptions => DUTSimExecuteOptions => UserSimulationOptions => Double
   global CompileOptions: DUT => PrivateXceliumDUTSimCompileOptions
   global ExecuteOptions: DUT => PrivateXceliumDUTSimExecuteOptions
 
 global def makeXceliumDUTSimulatorPlan testDriver waves score compileOptions executeOptions =
-  XceliumDUTSimulatorPlan testDriver waves score compileOptions executeOptions
+  def coverage = False
+  XceliumDUTSimulatorPlan testDriver waves coverage score compileOptions executeOptions
 
 
 tuple PrivateXceliumDUTSimCompileOptions =
@@ -22,7 +24,7 @@ global def makePrivateXceliumDUTSimCompileOptions =
     | setDUTSimCompileOptionsResources defaultXceliumResources
   PrivateXceliumDUTSimCompileOptions dutOpts Nil Nil
 
-def toXceliumSimCompilePlan privateOpts outputDir =
+def toXceliumSimCompilePlan privateOpts outputDir coverage =
   def dutOpts      = privateOpts.getPrivateXceliumDUTSimCompileOptionsDUTOpts
 
   def includeDirs    = dutOpts.getDUTSimCompileOptionsIncludeDirs
@@ -33,6 +35,10 @@ def toXceliumSimCompilePlan privateOpts outputDir =
   def resources      = dutOpts.getDUTSimCompileOptionsResources
   def extraArgs      = privateOpts.getPrivateXceliumDUTSimCompileOptionsExtraArgs
   def extraLibraryDirs = privateOpts.getPrivateXceliumDUTSimCompileOptionsLibraryDirs
+  def withCoverage coverageEnabled plan =
+    def editFn oldMetrics =
+      if coverageEnabled then defaultCoverageMetrics else oldMetrics
+    editXceliumCompilePlanCoverageMetrics editFn plan
 
   makeXceliumCompilePlan sourceFiles outputDir
   | setXceliumCompilePlanResources      resources
@@ -41,6 +47,7 @@ def toXceliumSimCompilePlan privateOpts outputDir =
   | setXceliumCompilePlanLibraryDirs    (libraryDirs ++ extraLibraryDirs)
   | setXceliumCompilePlanDefines        defines
   | setXceliumCompilePlanPlusargs       plusargs
+  | withCoverage                        coverage
 
 
 tuple PrivateXceliumDUTSimExecuteOptions =
@@ -53,7 +60,7 @@ global def makePrivateXceliumDUTSimExecuteOptions =
     | setDUTSimExecuteOptionsResources defaultXceliumResources
   PrivateXceliumDUTSimExecuteOptions dutOpts Nil
 
-def toXceliumSimExecutePlan opts compileOutputs outputDir =
+def toXceliumSimExecutePlan opts compileOutputs outputDir coverageOpts =
   def dutOpts = opts.getPrivateXceliumDUTSimExecuteOptionsDUTOpts
 
   def resources      = dutOpts.getDUTSimExecuteOptionsResources
@@ -62,11 +69,19 @@ def toXceliumSimExecutePlan opts compileOutputs outputDir =
 
   def extraArgs      = opts.getPrivateXceliumDUTSimExecuteOptionsExtraArgs
 
+  def withCoverageOpts coverageOpts plan = match coverageOpts
+    None = plan
+    Some (Pair maybeDir maybeName) =
+      plan
+      | editXceliumExecutePlanCoverageWorkDir (maybeDir | orElse _)
+      | editXceliumExecutePlanCoverageTest (maybeName | orElse _)
+
   makeXceliumExecutePlan compileOutputs outputDir
   | setXceliumExecutePlanResources      resources
   | setXceliumExecutePlanPlusargs       plusargs
   | setXceliumExecutePlanVisibleFiles   visibleFiles
   | setXceliumExecutePlanExtraArgs      extraArgs
+  | withCoverageOpts                    coverageOpts
 
 global topic xceliumDUTSimCompileOptionsHooks : DUT => Option (PrivateXceliumDUTSimCompileOptions => PrivateXceliumDUTSimCompileOptions)
 global topic xceliumDUTSimExecuteOptionsHooks : DUT => Option (PrivateXceliumDUTSimExecuteOptions => PrivateXceliumDUTSimExecuteOptions)
@@ -77,6 +92,7 @@ global def makeXceliumDUTSimulator plan =
   def simVendor = "synopsys"
   def testDriver = plan.getXceliumDUTSimulatorPlanTestDriver
   def waves  = plan.getXceliumDUTSimulatorPlanWaves
+  def coverage  = plan.getXceliumDUTSimulatorPlanCoverage
   def score  = plan.getXceliumDUTSimulatorPlanScore
 
   def imp dut rawCompileOptions rawExecuteOptions userOptions =
@@ -91,7 +107,7 @@ global def makeXceliumDUTSimulator plan =
         | editPrivateXceliumDUTSimCompileOptionsDUTOpts appendUserPlusargs
         | applyPartialEdits dut (subscribe xceliumDUTSimCompileOptionsHooks)
       def outputDir = userOptions.getUserSimulationOptionsCompileOutputDir
-      toXceliumSimCompilePlan privateOpts outputDir
+      toXceliumSimCompilePlan privateOpts outputDir coverage
       | doXceliumCompile
 
     def executeOutputs =
@@ -103,7 +119,14 @@ global def makeXceliumDUTSimulator plan =
         | editPrivateXceliumDUTSimExecuteOptionsDUTOpts appendUserPlusargs
         | applyPartialEdits dut (subscribe xceliumDUTSimExecuteOptionsHooks)
       def outputDir = userOptions.getUserSimulationOptionsExecuteOutputDir
-      toXceliumSimExecutePlan privateOpts compileOutputs outputDir
+      def covDir = userOptions.getUserSimulationOptionsCoverageDir
+      def covName = userOptions.getUserSimulationOptionsCoverageTestName
+      def coverageOpts =
+        if coverage then
+          Some (Pair covDir covName)
+        else
+          None
+      toXceliumSimExecutePlan privateOpts compileOutputs outputDir coverageOpts
       | doXceliumExecute
 
     executeOutputs
@@ -111,6 +134,7 @@ global def makeXceliumDUTSimulator plan =
     | makeSimulationOutput
 
   makeDUTSimulatorPlan simName simVendor testDriver waves score imp
+  | setDUTSimulatorPlanCoverage coverage
   | makeDUTSimulator
 
 
@@ -169,15 +193,30 @@ def xceliumExecuteOptsExtract waves dut =
   | editPrivateXceliumDUTSimExecuteOptionsDUTOpts genericOpts.appendDUTSimExecuteOptions
   | withWavesOptions
 
-def makeFreedomXceliumDUTSimulator waves =
+def defaultCoverageMetrics =
+  makeXceliumCoverageMetrics
+  | setXceliumCoverageMetricsBlock True
+  | setXceliumCoverageMetricsExpr True
+  | setXceliumCoverageMetricsToggle True
+
+def makeFreedomXceliumDUTSimulator waves coverage =
   def name = "xcelium"
   def score = (\_ \_ \_ \_ 1.0) # TODO
   def compileOptions = xceliumCompileOptsExtract waves
   def executeOptions = xceliumExecuteOptsExtract waves
   makeXceliumDUTSimulatorPlan name waves score compileOptions executeOptions
+  | setXceliumDUTSimulatorPlanCoverage coverage
   | makeXceliumDUTSimulator
 
 
-publish dutSimulators = freedomXceliumDUTSimulator, freedomXceliumWavesDUTSimulator, Nil
-global def freedomXceliumDUTSimulator = makeFreedomXceliumDUTSimulator False
-global def freedomXceliumWavesDUTSimulator = makeFreedomXceliumDUTSimulator True
+publish dutSimulators =
+  freedomXceliumDUTSimulator,
+  freedomXceliumWavesDUTSimulator,
+  freedomXceliumCoverageDUTSimulator,
+  freedomXceliumWavesCoverageDUTSimulator,
+  Nil
+
+global def freedomXceliumDUTSimulator = makeFreedomXceliumDUTSimulator False False
+global def freedomXceliumWavesDUTSimulator = makeFreedomXceliumDUTSimulator True False
+global def freedomXceliumCoverageDUTSimulator = makeFreedomXceliumDUTSimulator False True
+global def freedomXceliumWavesCoverageDUTSimulator = makeFreedomXceliumDUTSimulator True True

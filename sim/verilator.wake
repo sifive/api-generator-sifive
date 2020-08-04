@@ -12,6 +12,7 @@ tuple VerilatorCompilePlan =
   global Visible:       List Path
   global Resources:     List String
   global OutputDir:     String
+  global CoverageMetrics: VerilatorCoverageMetrics
 
 global def defaultVerilatorResources = "verilator/4.028", Nil
 
@@ -30,6 +31,7 @@ global def makeVerilatorCompilePlan sourceFiles main topModule outputDir =
   Nil            # Visible
   defaultVerilatorResources # Resources
   outputDir      # OutputDir
+  makeVerilatorCoverageMetrics # CoverageMetrics
 
 def verilatorWrapperScript = simplify "{here}/../scripts/verilator_wrapper"
 
@@ -48,12 +50,14 @@ def compileCmdlineArgs options =
     "--top-module",          topModule,
     "-Mdir",                 outputDir,
     Nil
+  def coverageMetrics = options.getVerilatorCompilePlanCoverageMetrics
 
   def files = distinctBy (scmpIdentifier _.getPathName _.getPathName) rawFiles
 
   def runDir = "."
   def includeArgs = map (\i "+incdir+{i}") includeDirs
   def libraryDirArgs = mapFlat (\i '-y', (relative runDir i), Nil) libraryDirs
+  def coverageArgs = getVerilatorCoverageMetricsCmdLineArgs coverageMetrics
   def defineArgs  = namedArgsToCmdline runDir "+define+" "=" defines
   def relativeFiles = map (_.getPathName) files
   def base = verilatorWrapperScript, Nil
@@ -63,6 +67,7 @@ def compileCmdlineArgs options =
   base
   ++ includeArgs
   ++ libraryDirArgs
+  ++ coverageArgs
   ++ defineArgs
   ++ relativeFiles
   ++ plusargArgs
@@ -224,3 +229,20 @@ global def getVerilatorExecuteOutputsStderr     = _.getVerilatorExecuteOutputsJo
 global def getVerilatorExecuteOutputsStatus     = _.getVerilatorExecuteOutputsJob_.getJobStatus
 global def getVerilatorExecuteOutputsPlan       = getVerilatorExecuteOutputsInputOptions_
 global def getVerilatorExecuteOutputsJob        = getVerilatorExecuteOutputsJob_
+
+# Coverage metrics to enable with the -overage flag to Verilator
+tuple VerilatorCoverageMetrics =
+  global Line: Boolean
+  global Toggle: Boolean
+  global User: Boolean
+
+global def makeVerilatorCoverageMetrics =
+  VerilatorCoverageMetrics False False False
+
+# Get coverage metrics suitable for passing to Verilator.
+#
+# Example: --coverage-line --coverage-user
+def getVerilatorCoverageMetricsCmdLineArgs metrics =
+  (if metrics.getVerilatorCoverageMetricsLine then "--coverage-line", Nil else Nil) ++
+  (if metrics.getVerilatorCoverageMetricsToggle then "--coverage-toggle", Nil else Nil) ++
+  (if metrics.getVerilatorCoverageMetricsUser then "--coverage-user", Nil else Nil)

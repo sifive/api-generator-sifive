@@ -5,13 +5,34 @@ tuple UserSimulationOptions =
   global ExecuteOutputDir:   String
   global ExecutePlusargs:    List NamedArg
 
+  # Directory for storing coverage data, generally shared across multiple runs
+  # in the same workspace. Should be a path relative to the workspace root.
+  #
+  # Note that the Verilator build rules do not respect this option, and coverage
+  # will be directly written to the execution directory.
+  #
+  # E.g. VCS's -cm_dir option or Xcelium's -covworkdir option.
+  global CoverageDir: Option String
+
+  # Name for an individual coverage test run.
+  #
+  # Note that the Verilator build rules do not respect this option, and coverage
+  # will be directly written to the execution directory.
+  #
+  # E.g. VCS's -cm_name option or Xcelium's -covtest option.
+  global CoverageTestName: Option String
+
 global def makeUserSimulationOptions simulatorName waves outputDir =
+  makeUserSimulationOptionsV2 simulatorName waves False outputDir
+
+global def makeUserSimulationOptionsV2 simulatorName waves coverage outputDir =
   def execOutputDir = "{outputDir}/execute"
   def compOutputDir = "{outputDir}/compile"
   def dutSimFilter dutSim =
     dutSimulatorNameEquals simulatorName dutSim
     && dutSimulatorWavesEquals waves dutSim
-  UserSimulationOptions dutSimFilter compOutputDir Nil execOutputDir Nil
+    && dutSimulatorCoverageEquals coverage dutSim
+  UserSimulationOptions dutSimFilter compOutputDir Nil execOutputDir Nil None None
 
 
 tuple DUTSimulatorPlan =
@@ -19,11 +40,12 @@ tuple DUTSimulatorPlan =
   global SimulatorVendor:    String
   global TestDriver:         String
   global Waves:              Boolean
+  global Coverage:           Boolean
   global Score:              DUT => DUTSimCompileOptions => DUTSimExecuteOptions => UserSimulationOptions => Double
   global SimulatorImp:       DUT => DUTSimCompileOptions => DUTSimExecuteOptions => UserSimulationOptions => SimulationOutput
 
 global def makeDUTSimulatorPlan simName simVendor testDriverName waves score simImp =
-  DUTSimulatorPlan simName simVendor testDriverName waves score simImp
+  DUTSimulatorPlan simName simVendor testDriverName waves False score simImp
 
 
 global def makeDUTSimulator plan =
@@ -31,12 +53,13 @@ global def makeDUTSimulator plan =
   def simulatorVendor = plan.getDUTSimulatorPlanSimulatorVendor
   def testDriver      = plan.getDUTSimulatorPlanTestDriver
   def waves           = plan.getDUTSimulatorPlanWaves
+  def coverage        = plan.getDUTSimulatorPlanCoverage
   def imp             = plan.getDUTSimulatorPlanSimulatorImp
 
   def score (Quadruple dut compileOpts executeOpts userOpts) =
     plan.getDUTSimulatorPlanScore dut compileOpts executeOpts userOpts
 
-  DUTSimulator simulatorName simulatorVendor testDriver waves score imp
+  DUTSimulator simulatorName simulatorVendor testDriver waves coverage score imp
 
 tuple Quadruple a b c d =
   First:  a
@@ -49,13 +72,18 @@ tuple DUTSimulator =
   global SimulatorVendor: String
   global TestDriver:      String
   global Waves:           Boolean
+  global Coverage:        Boolean
   Score:                  Quadruple DUT DUTSimCompileOptions DUTSimExecuteOptions UserSimulationOptions => Double
   Imp:                    DUT => DUTSimCompileOptions => DUTSimExecuteOptions => UserSimulationOptions => SimulationOutput
 
 global def dutSimulatorVendorEquals     vendor     sim = sim.getDUTSimulatorSimulatorVendor ==~ vendor
 global def dutSimulatorNameEquals       name       sim = sim.getDUTSimulatorSimulatorName ==~ name
 global def dutSimulatorTestDriverEquals testDriver sim = sim.getDUTSimulatorTestDriver ==~ testDriver
-global def dutSimulatorWavesEquals      waves      sim = match sim.getDUTSimulatorWaves waves
+global def dutSimulatorWavesEquals      waves      sim = boolEquals sim.getDUTSimulatorWaves waves
+global def dutSimulatorCoverageEquals   coverage   sim = boolEquals sim.getDUTSimulatorCoverage coverage
+
+# Like ==, but operates on Booleans
+def boolEquals a b = match a b
   True  True  = True
   False False = True
   _     _     = False
@@ -83,7 +111,9 @@ global def simulateDUT dut dutOptions userOptions =
   def simulator =
     def plan = Quadruple dut compileOpts executeOpts userOptions
     def getScore = _.getQuadrupleFourth.getUserSimulationOptionsFilter
-    getBestImpForPlan plan getScore getDUTSimulatorScore simulators
+    match (getBestImpForPlanV2 plan getScore getDUTSimulatorScore simulators)
+      Some sim = sim
+      None = panic "No matching simulator found. Hint: Waveform dumping or coverage metrics may not be supported in the Wake rules for your simulator of choice."
 
   simulator.getDUTSimulatorImp dut compileOpts executeOpts userOptions
 

@@ -9,6 +9,7 @@ tuple VCSCompilePlan =
   global Visible:     List Path
   global TmpDir:      String
   global OutputDir:   String
+  global CoverageMetrics: VCSCoverageMetrics
 
 def dir / subdir = "{dir.getPathName}/{subdir}"
 
@@ -26,6 +27,7 @@ global def makeVCSCompilePlan sourceFiles outputDir =
   Nil                   # Visible
   "{outputDir}/tmp"     # TmpDir
   outputDir             # OutputDir
+  makeVCSCoverageMetrics # CoverageMetrics
 
 def vcsWrapperScript = simplify "{here}/../scripts/vcs_wrapper"
 
@@ -36,6 +38,7 @@ def compileCmdlineArgs options =
   def defines      = options.getVCSCompilePlanDefines
   def plusargs     = options.getVCSCompilePlanPlusargs
   def rawFiles     = options.getVCSCompilePlanSourceFiles
+  def coverageMetrics = options.getVCSCompilePlanCoverageMetrics
   def otherArgs    = namedArgsToListString runDir options.getVCSCompilePlanExtraArgs
 
   def files = distinctBy (scmpIdentifier _.getPathName _.getPathName) rawFiles
@@ -43,6 +46,7 @@ def compileCmdlineArgs options =
 
   def includeArgs = map (\i "+incdir+{relative runDir i}") includeDirs
   def libraryDirArgs = mapFlat (\i '-y', (relative runDir i), Nil) libraryDirs
+  def coverageArgs = getVCSCoverageMetricsCmdLineArgs coverageMetrics
   def defineArgs  = namedArgsToCmdline runDir "+define+" "=" defines
   def plusargArgs = namedArgsToCmdline runDir "+" "=" plusargs
   def fileArgs    = map (relative runDir _.getPathName) files
@@ -50,6 +54,7 @@ def compileCmdlineArgs options =
   relative runDir vcsWrapperScript,
   includeArgs
   ++ libraryDirArgs
+  ++ coverageArgs
   ++ defineArgs
   ++ plusargArgs
   ++ otherArgs
@@ -118,9 +123,23 @@ tuple VCSExecutePlan =
   global StderrTailNum:  Integer
   global StdoutTailNum:  Integer
   global Resources:      List String
+  global CoverageMetrics: VCSCoverageMetrics
+  global CoverageDir: Option String
+  global CoverageTestName: Option String
 
 global def makeVCSExecutePlan compileOutputs outputDir =
-  VCSExecutePlan outputDir Nil Nil compileOutputs Nil 5000 5000 Nil
+  VCSExecutePlan
+  outputDir       # OutputDir
+  Nil             # Plusargs
+  Nil             # VisibleFiles
+  compileOutputs  # CompileOutputs
+  Nil             # ExtraArgs
+  5000            # StderrTailNum
+  5000            # StdoutTailNum
+  Nil             # Resources
+  makeVCSCoverageMetrics # CoverageMetrics
+  None            # CoverageDir
+  None            # CoverageTestName
 
 global def doVCSExecute options =
   def compileOutputs = options.getVCSExecutePlanCompileOutputs
@@ -138,13 +157,25 @@ global def doVCSExecute options =
   def cmdline =
     def plusargs = namedArgsToCmdline outputDir "+" "=" options.getVCSExecutePlanPlusargs
     def extraArgs = namedArgsToListString outputDir options.getVCSExecutePlanExtraArgs
+    def coverageArgs =
+      def metricsArgs =
+        options
+        | getVCSExecutePlanCoverageMetrics
+        | getVCSCoverageMetricsCmdLineArgs
+      def dirArgs = match options.getVCSExecutePlanCoverageDir
+        Some dir = "-cm_dir", (relative outputDir dir), Nil
+        None = Nil
+      def nameArgs = match options.getVCSExecutePlanCoverageTestName
+        Some name = "-cm_name", name, Nil
+        None = Nil
+      metricsArgs ++ dirArgs ++ nameArgs
     relative outputDir wrapperScript.getPathName,
     relative outputDir stdoutFile,
     relative outputDir stderrFile,
     str options.getVCSExecutePlanStdoutTailNum,
     str options.getVCSExecutePlanStderrTailNum,
     "./{relative outputDir simv.getPathName}",
-    (extraArgs ++ plusargs)
+    (extraArgs ++ coverageArgs ++ plusargs)
 
   def jobResult =
     makePlan cmdline inputs
@@ -172,3 +203,33 @@ global def getVCSExecuteOutputsStderr     = _.getVCSExecuteOutputsJob_.getJobStd
 global def getVCSExecuteOutputsStatus     = _.getVCSExecuteOutputsJob_.getJobStatus
 global def getVCSExecuteOutputsPlan       = getVCSExecuteOutputsPlan_
 global def getVCSExecuteOutputsJob        = getVCSExecuteOutputsJob_
+
+
+# Coverage metrics to enable with the -cm flag to VCS
+tuple VCSCoverageMetrics =
+  global Line: Boolean
+  global Cond: Boolean
+  global Tgl: Boolean
+  global FSM: Boolean
+  global Branch: Boolean
+  global Assert: Boolean
+
+global def makeVCSCoverageMetrics =
+  VCSCoverageMetrics False False False False False False
+
+# Get coverage metrics suitable for passing to VCS.
+#
+# Example: -cm line+cond+tgl+branch
+def getVCSCoverageMetricsCmdLineArgs metrics =
+  def args =
+    (if metrics.getVCSCoverageMetricsLine then "line", Nil else Nil) ++
+    (if metrics.getVCSCoverageMetricsCond then "cond", Nil else Nil) ++
+    (if metrics.getVCSCoverageMetricsTgl then "tgl", Nil else Nil) ++
+    (if metrics.getVCSCoverageMetricsFSM then "fsm", Nil else Nil) ++
+    (if metrics.getVCSCoverageMetricsBranch then "branch", Nil else Nil) ++
+    (if metrics.getVCSCoverageMetricsAssert then "assert", Nil else Nil)
+
+  if empty args then
+    Nil
+  else
+    "-cm", catWith "+" args, Nil

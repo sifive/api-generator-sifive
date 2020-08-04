@@ -1,12 +1,14 @@
 tuple VCSDUTSimulatorPlan =
   global TestDriver:     String
   global Waves:          Boolean
+  global Coverage:       Boolean
   global Score:          DUT => DUTSimCompileOptions => DUTSimExecuteOptions => UserSimulationOptions => Double
   global CompileOptions: DUT => PrivateVCSDUTSimCompileOptions
   global ExecuteOptions: DUT => PrivateVCSDUTSimExecuteOptions
 
 global def makeVCSDUTSimulatorPlan testDriver waves score compileOptions executeOptions =
-  VCSDUTSimulatorPlan testDriver waves score compileOptions executeOptions
+  def coverage = False
+  VCSDUTSimulatorPlan testDriver waves coverage score compileOptions executeOptions
 
 
 tuple PrivateVCSDUTSimCompileOptions =
@@ -20,7 +22,7 @@ global def makePrivateVCSDUTSimCompileOptions =
     | setDUTSimCompileOptionsResources defaultVCSResources
   PrivateVCSDUTSimCompileOptions dutOpts Nil Nil
 
-def toVCSSimCompilePlan privateOpts outputDir =
+def toVCSSimCompilePlan privateOpts outputDir coverage =
   def dutOpts      = privateOpts.getPrivateVCSDUTSimCompileOptionsDUTOpts
 
   def resources    = dutOpts.getDUTSimCompileOptionsResources
@@ -31,6 +33,10 @@ def toVCSSimCompilePlan privateOpts outputDir =
   def plusargs     = dutOpts.getDUTSimCompileOptionsPlusargs
   def extraArgs    = privateOpts.getPrivateVCSDUTSimCompileOptionsExtraArgs
   def extraLibraryDirs = privateOpts.getPrivateVCSDUTSimCompileOptionsLibraryDirs
+  def withCoverage coverageEnabled plan =
+    def editFn oldMetrics =
+      if coverageEnabled then defaultCoverageMetrics else oldMetrics
+    editVCSCompilePlanCoverageMetrics editFn plan
 
   makeVCSCompilePlan sourceFiles outputDir
   | setVCSCompilePlanResources   resources
@@ -39,6 +45,7 @@ def toVCSSimCompilePlan privateOpts outputDir =
   | setVCSCompilePlanLibraryDirs (libraryDirs ++ extraLibraryDirs)
   | setVCSCompilePlanDefines     defines
   | setVCSCompilePlanPlusargs    plusargs
+  | withCoverage                 coverage
 
 tuple PrivateVCSDUTSimExecuteOptions =
   global DUTOpts:   DUTSimExecuteOptions
@@ -47,19 +54,28 @@ tuple PrivateVCSDUTSimExecuteOptions =
 global def makePrivateVCSDUTSimExecuteOptions =
    PrivateVCSDUTSimExecuteOptions emptyDUTSimExecuteOptions Nil
 
-def toVCSSimExecutePlan opts compileOutputs outputDir =
+def toVCSSimExecutePlan opts compileOutputs outputDir coverageOpts =
   def genericOpts = opts.getPrivateVCSDUTSimExecuteOptionsDUTOpts
 
   def plusargs     = genericOpts.getDUTSimExecuteOptionsPlusargs
   def visibleFiles = genericOpts.getDUTSimExecuteOptionsVisibleFiles
   def resources    = genericOpts.getDUTSimExecuteOptionsResources
   def extraArgs    = opts.getPrivateVCSDUTSimExecuteOptionsExtraArgs
+  def withCoverageOpts coverageOpts plan =
+    match coverageOpts
+      None = plan
+      Some (Pair maybeDir maybeName) =
+        plan
+        | setVCSExecutePlanCoverageMetrics defaultCoverageMetrics
+        | editVCSExecutePlanCoverageDir (maybeDir | orElse _)
+        | editVCSExecutePlanCoverageTestName (maybeName | orElse _)
 
   makeVCSExecutePlan compileOutputs outputDir
   | setVCSExecutePlanPlusargs     plusargs
   | setVCSExecutePlanVisibleFiles visibleFiles
   | setVCSExecutePlanExtraArgs    extraArgs
   | setVCSExecutePlanResources    resources
+  | withCoverageOpts coverageOpts
 
 global topic vcsDUTSimCompileOptionsHooks : DUT => Option (PrivateVCSDUTSimCompileOptions => PrivateVCSDUTSimCompileOptions)
 global topic vcsDUTSimExecuteOptionsHooks : DUT => Option (PrivateVCSDUTSimExecuteOptions => PrivateVCSDUTSimExecuteOptions)
@@ -70,6 +86,7 @@ global def makeVCSDUTSimulator plan =
   def simVendor = "synopsys"
   def testDriver = plan.getVCSDUTSimulatorPlanTestDriver
   def waves  = plan.getVCSDUTSimulatorPlanWaves
+  def coverage = plan.getVCSDUTSimulatorPlanCoverage
   def score  = plan.getVCSDUTSimulatorPlanScore
 
   def imp dut rawCompileOptions rawExecuteOptions userOptions =
@@ -84,7 +101,7 @@ global def makeVCSDUTSimulator plan =
         | editPrivateVCSDUTSimCompileOptionsDUTOpts appendUserPlusargs
         | applyPartialEdits dut (subscribe vcsDUTSimCompileOptionsHooks)
       def outputDir = userOptions.getUserSimulationOptionsCompileOutputDir
-      toVCSSimCompilePlan privateOpts outputDir
+      toVCSSimCompilePlan privateOpts outputDir coverage
       | doVCSCompile
 
     def executeOutputs =
@@ -96,7 +113,14 @@ global def makeVCSDUTSimulator plan =
         | editPrivateVCSDUTSimExecuteOptionsDUTOpts appendUserPlusargs
         | applyPartialEdits dut (subscribe vcsDUTSimExecuteOptionsHooks)
       def outputDir = userOptions.getUserSimulationOptionsExecuteOutputDir
-      toVCSSimExecutePlan privateOpts compileOutputs outputDir
+      def covDir = userOptions.getUserSimulationOptionsCoverageDir
+      def covName = userOptions.getUserSimulationOptionsCoverageTestName
+      def coverageOpts =
+        if coverage then
+          Some (Pair covDir covName)
+        else
+          None
+      toVCSSimExecutePlan privateOpts compileOutputs outputDir coverageOpts
       | doVCSExecute
 
     executeOutputs
@@ -104,6 +128,7 @@ global def makeVCSDUTSimulator plan =
     | makeSimulationOutput
 
   makeDUTSimulatorPlan simName simVendor testDriver waves score imp
+  | setDUTSimulatorPlanCoverage coverage
   | makeDUTSimulator
 
 
@@ -171,15 +196,31 @@ def vcsExecuteOptsExtract waves dut =
   | editPrivateVCSDUTSimExecuteOptionsExtraArgs withExtraArgs
   | withWavesOptions
 
-def makeFreedomVCSDUTSimulator waves =
+def defaultCoverageMetrics =
+  makeVCSCoverageMetrics
+  | setVCSCoverageMetricsLine True
+  | setVCSCoverageMetricsTgl True
+  | setVCSCoverageMetricsBranch True
+  | setVCSCoverageMetricsAssert True
+
+def makeFreedomVCSDUTSimulator waves coverage =
   def name = "vcs"
   def score = (\_ \_ \_ \_ 1.0) # TODO
   def compileOptions = vcsCompileOptsExtract waves
   def executeOptions = vcsExecuteOptsExtract waves
   makeVCSDUTSimulatorPlan name waves score compileOptions executeOptions
+  | setVCSDUTSimulatorPlanCoverage coverage
   | makeVCSDUTSimulator
 
 
-publish dutSimulators = freedomVCSDUTSimulator, freedomVCSWavesDUTSimulator, Nil
-global def freedomVCSDUTSimulator = makeFreedomVCSDUTSimulator False
-global def freedomVCSWavesDUTSimulator = makeFreedomVCSDUTSimulator True
+publish dutSimulators =
+  freedomVCSDUTSimulator,
+  freedomVCSWavesDUTSimulator,
+  freedomVCSCoverageDUTSimulator,
+  freedomVCSWavesCoverageDUTSimulator,
+  Nil
+
+global def freedomVCSDUTSimulator = makeFreedomVCSDUTSimulator False False
+global def freedomVCSWavesDUTSimulator = makeFreedomVCSDUTSimulator True False
+global def freedomVCSCoverageDUTSimulator = makeFreedomVCSDUTSimulator False True
+global def freedomVCSWavesCoverageDUTSimulator = makeFreedomVCSDUTSimulator True True

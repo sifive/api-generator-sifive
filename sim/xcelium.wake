@@ -8,6 +8,7 @@ tuple XceliumCompilePlan =
   global ExtraArgs:   List NamedArg
   global FHomeDir:    String # func from output dir to home dir
   global OutputDir:   String
+  global CoverageMetrics: XceliumCoverageMetrics
 
 def defaultXceliumVersion = "cadence/xcelium/18.09.004"
 
@@ -22,6 +23,7 @@ global def makeXceliumCompilePlan sourceFiles outputDir =
   Nil                # ExtraArgs
   "{outputDir}/home" # FHomeDir
   outputDir          # OutputDir
+  makeXceliumCoverageMetrics # CoverageMetrics
 
 def xrunWrapperScript = simplify "{here}/../scripts/xcelium_wrapper"
 
@@ -32,6 +34,7 @@ def compileCmdlineArgs options =
   def libraryDirs  = options.getXceliumCompilePlanLibraryDirs
   def defines      = options.getXceliumCompilePlanDefines
   def rawFiles     = options.getXceliumCompilePlanSourceFiles
+  def coverageMetrics = options.getXceliumCompilePlanCoverageMetrics
   def otherArgs    = namedArgsToListString runDir options.getXceliumCompilePlanExtraArgs
 
   def files = distinctBy (scmpIdentifier _.getPathName _.getPathName) rawFiles
@@ -39,6 +42,7 @@ def compileCmdlineArgs options =
 
   def includeArgs = map (\i "+incdir+{relative runDir i}") includeDirs
   def libraryDirArgs = mapFlat (\i '-y', (relative runDir i), Nil) libraryDirs
+  def coverageArgs = getXceliumCoverageMetricsCmdLineArgs coverageMetrics
   def defineArgs  = namedArgsToCmdline runDir "+define+" "=" defines
   def plusargArgs = namedArgsToCmdline runDir "+" "=" plusargs
   def fileArgs = map (relative runDir _.getPathName) files
@@ -46,6 +50,7 @@ def compileCmdlineArgs options =
   relative runDir xrunWrapperScript,
   includeArgs
   ++ libraryDirArgs
+  ++ coverageArgs
   ++ defineArgs
   ++ plusargArgs
   ++ otherArgs
@@ -100,6 +105,12 @@ tuple XceliumExecutePlan =
   global Plusargs:       List NamedArg
   global VisibleFiles:   List Path
   global CompileOutputs: XceliumCompileOutputs
+  # Path to base coverage work directory. Argument to -covworkdir.
+  global CoverageWorkDir: Option String
+  # Directory name for coverage models. Argument to -covscope.
+  global CoverageScope: Option String
+  # Directory name for coverage results for one run. Argument to -covtest.
+  global CoverageTest: Option String
 
 global def makeXceliumExecutePlan compileOuts outputDir =
   XceliumExecutePlan
@@ -109,11 +120,17 @@ global def makeXceliumExecutePlan compileOuts outputDir =
   Nil         # Plusargs
   Nil         # VisibleFiles
   compileOuts # CompileOutputs
+  None        # CoverageWorkDir
+  None        # CoverageScope
+  None        # CoverageTest
 
 global def doXceliumExecute options =
   def outputDir = options.getXceliumExecutePlanOutputDir
   def compileOutputs = options.getXceliumExecutePlanCompileOutputs
   def compileOptions = compileOutputs.getXceliumCompileOutputsInputOptions
+  def covWorkDir = options.getXceliumExecutePlanCoverageWorkDir
+  def covScope = options.getXceliumExecutePlanCoverageScope
+  def covTest = options.getXceliumExecutePlanCoverageTest
 
   def inputs =
     def compileDir = compileOutputs.getXceliumCompileOutputsInputOptions.getXceliumCompilePlanOutputDir.mkdir
@@ -129,7 +146,18 @@ global def doXceliumExecute options =
     def base = "xrun", Nil
     def extraArgs = namedArgsToListString outputDir options.getXceliumExecutePlanExtraArgs
     def plusargs = namedArgsToCmdline outputDir "+" "=" options.getXceliumExecutePlanPlusargs
-    base ++ plusargs ++ extraArgs ++ xmLibDir
+    def coverageArgs =
+      def dirArgs = match covWorkDir
+        Some dir = "-covworkdir", relative outputDir dir, Nil
+        None = Nil
+      def scopeArgs = match covScope
+        Some name = "-covscope", name, Nil
+        None = Nil
+      def nameArgs = match covTest
+        Some name = "-covtest", name, Nil
+        None = Nil
+      dirArgs ++ scopeArgs ++ nameArgs
+    base ++ plusargs ++ extraArgs ++ coverageArgs ++ xmLibDir
 
   def rawHomeDir = compileOptions.getXceliumCompilePlanFHomeDir
   def homeDir = mkdir rawHomeDir
@@ -160,3 +188,33 @@ global def getXceliumExecuteOutputsStderr       = _.getXceliumExecuteOutputsJob_
 global def getXceliumExecuteOutputsStatus       = _.getXceliumExecuteOutputsJob_.getJobStatus
 global def getXceliumExecuteOutputsInputOptions = getXceliumExecuteOutputsInputOptions_
 global def getXceliumExecuteOutputsJob          = getXceliumExecuteOutputsJob_
+
+
+# Coverage metrics to enable with the -overage flag to Xcelium
+tuple XceliumCoverageMetrics =
+  global Block: Boolean
+  global Expr: Boolean
+  global FSM: Boolean
+  global Toggle: Boolean
+  global Functional: Boolean
+  global All: Boolean
+
+global def makeXceliumCoverageMetrics =
+  XceliumCoverageMetrics False False False False False False
+
+# Get coverage metrics suitable for passing to Xcelium.
+#
+# Example: -coverage B:E:T
+def getXceliumCoverageMetricsCmdLineArgs metrics =
+  def args =
+    (if metrics.getXceliumCoverageMetricsBlock then "B", Nil else Nil) ++
+    (if metrics.getXceliumCoverageMetricsExpr then "E", Nil else Nil) ++
+    (if metrics.getXceliumCoverageMetricsFSM then "F", Nil else Nil) ++
+    (if metrics.getXceliumCoverageMetricsToggle then "T", Nil else Nil) ++
+    (if metrics.getXceliumCoverageMetricsFunctional then "U", Nil else Nil) ++
+    (if metrics.getXceliumCoverageMetricsAll then "A", Nil else Nil)
+
+  if empty args then
+    Nil
+  else
+    "-coverage", catWith ":" args, Nil

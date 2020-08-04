@@ -1,12 +1,14 @@
 tuple VerilatorDUTSimulatorPlan =
   global TestDriver:     String
   global Waves:          Boolean
+  global Coverage:       Boolean
   global Score:          DUT => DUTSimCompileOptions => DUTSimExecuteOptions => UserSimulationOptions => Double
   global CompileOptions: DUT => PrivateVerilatorDUTSimCompileOptions
   global ExecuteOptions: DUT => PrivateVerilatorDUTSimExecuteOptions
 
 global def makeVerilatorDUTSimulatorPlan testDriver waves score compileOptions executeOptions =
-  VerilatorDUTSimulatorPlan testDriver waves score compileOptions executeOptions
+  def coverage = False
+  VerilatorDUTSimulatorPlan testDriver waves coverage score compileOptions executeOptions
 
 
 # compile options that you want to bake into your dut simulator
@@ -32,7 +34,7 @@ global def makePrivateVerilatorDUTSimCompileOptions main prefix topModule =
   Nil
   Nil
 
-def toVerilatorSimCompilePlan privateOpts outputDir =
+def toVerilatorSimCompilePlan privateOpts outputDir coverage =
   def dutOpts      = privateOpts.getPrivateVerilatorDUTSimCompileOptionsDUTOpts
 
   def includeDirs  = dutOpts.getDUTSimCompileOptionsIncludeDirs
@@ -48,6 +50,10 @@ def toVerilatorSimCompilePlan privateOpts outputDir =
   def main         = privateOpts.getPrivateVerilatorDUTSimCompileOptionsMain
   def prefix       = privateOpts.getPrivateVerilatorDUTSimCompileOptionsPrefix
   def topModule    = privateOpts.getPrivateVerilatorDUTSimCompileOptionsTopModule
+  def withCoverage coverageEnabled plan =
+    def editFn oldMetrics =
+      if coverageEnabled then defaultCoverageMetrics else oldMetrics
+    editVerilatorCompilePlanCoverageMetrics editFn plan
 
   makeVerilatorCompilePlan sourceFiles main topModule outputDir
   | setVerilatorCompilePlanExtraArgs   extraArgs
@@ -58,6 +64,7 @@ def toVerilatorSimCompilePlan privateOpts outputDir =
   | setVerilatorCompilePlanPlusargs    plusargs
   | setVerilatorCompilePlanPrefix      prefix
   | setVerilatorCompilePlanResources   resources
+  | withCoverage                       coverage
 
 global topic verilatorDUTSimCompileOptionsHooks : DUT => Option (PrivateVerilatorDUTSimCompileOptions => PrivateVerilatorDUTSimCompileOptions)
 global topic verilatorDUTSimExecuteOptionsHooks : DUT => Option (PrivateVerilatorDUTSimExecuteOptions => PrivateVerilatorDUTSimExecuteOptions)
@@ -93,6 +100,7 @@ global def makeVerilatorDUTSimulator plan =
   def simVendor = "veripool"
   def testDriver = plan.getVerilatorDUTSimulatorPlanTestDriver
   def waves  = plan.getVerilatorDUTSimulatorPlanWaves
+  def coverage = plan.getVerilatorDUTSimulatorPlanCoverage
   def score  = plan.getVerilatorDUTSimulatorPlanScore
 
   def imp dut rawCompileOptions rawExecuteOptions userOptions =
@@ -107,7 +115,7 @@ global def makeVerilatorDUTSimulator plan =
         | editPrivateVerilatorDUTSimCompileOptionsDUTOpts appendUserPlusargs
         | applyPartialEdits dut (subscribe verilatorDUTSimCompileOptionsHooks)
       def outputDir = userOptions.getUserSimulationOptionsCompileOutputDir
-      toVerilatorSimCompilePlan privateOpts outputDir
+      toVerilatorSimCompilePlan privateOpts outputDir coverage
       | doVerilatorCompile
 
     def executeOutputs =
@@ -127,6 +135,7 @@ global def makeVerilatorDUTSimulator plan =
     | makeSimulationOutput
 
   makeDUTSimulatorPlan simName simVendor testDriver waves score imp
+  | setDUTSimulatorPlanCoverage coverage
   | makeDUTSimulator
 
 global def verilatorCompile dut userOptions =
@@ -139,7 +148,8 @@ global def verilatorCompile dut userOptions =
       | editPrivateVerilatorDUTSimCompileOptionsDUTOpts appendDUTOptions
       | applyPartialEdits dut (subscribe verilatorDUTSimCompileOptionsHooks)
     def outputDir = userOptions.getUserSimulationOptionsCompileOutputDir
-    toVerilatorSimCompilePlan privateOpts outputDir
+    def coverage = False
+    toVerilatorSimCompilePlan privateOpts outputDir coverage
     | doVerilatorCompile
 
   compileOutputs
@@ -212,15 +222,29 @@ def verilatorExecuteOptsExtract waves dut =
   | editPrivateVerilatorDUTSimExecuteOptionsDUTOpts genericOpts.appendDUTSimExecuteOptions
   | withWavesOptions
 
-def makeFreedomVerilatorDUTSimulator waves =
+def defaultCoverageMetrics =
+  makeVerilatorCoverageMetrics
+  | setVerilatorCoverageMetricsLine True
+  | setVerilatorCoverageMetricsUser True
+
+def makeFreedomVerilatorDUTSimulator waves coverage =
   def name = "verilator"
   def score = (\_ \_ \_ \_ 1.0) # TODO
   def compileOptions = verilatorCompileOptsExtract waves
   def executeOptions = verilatorExecuteOptsExtract waves
   makeVerilatorDUTSimulatorPlan name waves score compileOptions executeOptions
+  | setVerilatorDUTSimulatorPlanCoverage coverage
   | makeVerilatorDUTSimulator
 
 
-publish dutSimulators = freedomVerilatorDUTSimulator, freedomVerilatorWavesDUTSimulator, Nil
-global def freedomVerilatorDUTSimulator = makeFreedomVerilatorDUTSimulator False
-global def freedomVerilatorWavesDUTSimulator = makeFreedomVerilatorDUTSimulator True
+publish dutSimulators =
+  freedomVerilatorDUTSimulator,
+  freedomVerilatorWavesDUTSimulator,
+  freedomVerilatorCoverageDUTSimulator,
+  freedomVerilatorWavesCoverageDUTSimulator,
+  Nil
+
+global def freedomVerilatorDUTSimulator = makeFreedomVerilatorDUTSimulator False False
+global def freedomVerilatorWavesDUTSimulator = makeFreedomVerilatorDUTSimulator True False
+global def freedomVerilatorCoverageDUTSimulator = makeFreedomVerilatorDUTSimulator False True
+global def freedomVerilatorWavesCoverageDUTSimulator = makeFreedomVerilatorDUTSimulator True True

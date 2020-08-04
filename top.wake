@@ -67,6 +67,7 @@ global topic dutTests : DUTTest
 tuple SimTargetOptions =
   global SimName: String  # Simulator name, e.g. "verilator"
   global Waves: Boolean  # Enable waveform dumping
+  global Coverage: Boolean  # Enable coverage metrics collection
 
   # A filter function for filtering tests that should be run. It should accept a
   # single DUTTest as an argument, returning True if the test should be run and
@@ -74,15 +75,17 @@ tuple SimTargetOptions =
   global TestFilter: DUTTest => Boolean
 
 global def makeSimTargetOptions simName waves =
+  def coverage = False
   def testFilter dutTest =
     True
-  SimTargetOptions simName waves testFilter
+  SimTargetOptions simName waves coverage testFilter
 
 # A target that can be used with runPlatform to run a suite of simulation tests
 # and return a Result indicating whether or not all tests passed.
 global def simTargetV2 dut buildRoot simTargetOptions =
   def simName = simTargetOptions.getSimTargetOptionsSimName
   def waves = simTargetOptions.getSimTargetOptionsWaves
+  def coverage = simTargetOptions.getSimTargetOptionsCoverage
   def testFilter = simTargetOptions.getSimTargetOptionsTestFilter
 
   def dutTests = subscribe dutTests | filter (_.getDUTTestFilter dut) | filter testFilter
@@ -92,7 +95,7 @@ global def simTargetV2 dut buildRoot simTargetOptions =
         \dutTest
         Pair
         dutTest.getDUTTestProgram.getTestProgramPlanName
-        (singleSimOutput simName waves dut buildRoot dutTest)
+        (singleSimOutput simName waves coverage dut buildRoot dutTest)
     )
 
   def getSimCheckerOptions programName =
@@ -142,7 +145,7 @@ global def aggregateTestResults pairs =
   | catWith "\n"
   | ("\n===== TEST RESULTS =====\n{_}\n")
 
-def singleSimOutput simName waves dut buildRoot dutTest =
+def singleSimOutput simName waves coverage dut buildRoot dutTest =
   def programName = dutTest.getDUTTestProgram.getTestProgramPlanName
   def testProgram =
     def testProgramPlan = dutTest.getDUTTestProgram
@@ -154,10 +157,19 @@ def singleSimOutput simName waves dut buildRoot dutTest =
   def userSimulationOptions =
     def outputDir = buildRoot.getBuildTreeSimulationDir simName
     def withExecutePlusargs = (_)
-    makeUserSimulationOptions simName waves outputDir
+    def executeOutputDir = buildRoot.getBuildTreeSimExecuteDir simName programName
+    def withCoverage coverage simOpts =
+      if coverage then
+        simOpts
+        | setUserSimulationOptionsCoverageDir (Some "{executeOutputDir}/coverage")
+        | setUserSimulationOptionsCoverageTestName (Some dutTest.getDUTTestName)
+      else
+        simOpts
+    makeUserSimulationOptionsV2 simName waves coverage outputDir
     | editUserSimulationOptionsExecutePlusargs withExecutePlusargs
-    | setUserSimulationOptionsExecuteOutputDir (buildRoot.getBuildTreeSimExecuteDir simName programName)
+    | setUserSimulationOptionsExecuteOutputDir executeOutputDir
     | setUserSimulationOptionsCompileOutputDir (buildRoot.getBuildTreeSimCompileDir simName)
+    | withCoverage coverage
 
   def simulationOptions =
     dut
@@ -237,7 +249,8 @@ global def singleSimTarget simName waves dut buildRoot dutTest =
     def outputDir = buildRoot.getBuildTreeReportDir simName programName
     makeSimCheckerOptions filter outputDir
 
-  singleSimOutput simName waves dut buildRoot dutTest
+  def coverage = False
+  singleSimOutput simName waves coverage dut buildRoot dutTest
   | (reportSimulationOutputs simChecker dut _ simCheckerOptions)
 
 global data Simulator =
@@ -279,6 +292,22 @@ global def runSingleSimWith dut testName sim =
   def simTargetOptions =
     makeSimTargetOptions sim.simulatorToString sim.simulatorToWaves
     | setSimTargetOptionsTestFilter testFilter
+  runPlatform rocketChipPlatform dut simTargetV2 simTargetOptions
+
+# Run a simulation with SimTargetOptions.
+#
+# More flexible than runSim, but more verbose to type on the command line.
+#
+# Examples:
+#   Run VCS without waves:
+#     runSimV2 pioDUT (makeSimTargetOptions "vcs" False)
+#
+#   Run Verilator with waves and coverage:
+#     runSimV2 pioDUT (makeSimTargetOptions "vcs" True | setSimTargetOptionsCoverage True)
+#
+#   Run Xcelium without waves but with coverage:
+#     runSimV2 pioDUT (makeSimTargetOptions "xcelium" False | setSimTargetOptionsCoverage True)
+global def runSimV2 dut simTargetOptions =
   runPlatform rocketChipPlatform dut simTargetV2 simTargetOptions
 
 global def makeRTL dut = runPlatform rocketChipPlatform dut rtlTarget
