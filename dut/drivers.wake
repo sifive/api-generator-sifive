@@ -26,7 +26,7 @@ tuple DriverImplementation =
 global def makeDriverImplementation compatibleDevices vendor deviceName driverSources includeDirs visible =
   DriverImplementation compatibleDevices vendor deviceName driverSources includeDirs visible
 
-topic driverImplementations: DriverImplementation
+global topic driverImplementations: DriverImplementation
 
 target driverImpCompatibilityTrees Unit =
   subscribe driverImplementations
