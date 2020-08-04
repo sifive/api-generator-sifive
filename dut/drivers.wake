@@ -26,6 +26,8 @@ tuple DriverImplementation =
 global def makeDriverImplementation compatibleDevices vendor deviceName driverSources includeDirs visible =
   DriverImplementation compatibleDevices vendor deviceName driverSources includeDirs visible
 
+topic driverImplementations: DriverImplementation
+
 target driverImpCompatibilityTrees Unit =
   subscribe driverImplementations
   | map (\p p → listToTree scmp p.getDriverImplementationCompatibilityStrings)
