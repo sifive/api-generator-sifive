@@ -32,7 +32,7 @@
         "source": "git@github.com:sifive/devicetree-overlay-generator.git"
     },
     {
-        "commit": "cff1b713ac789bea21bcb794c6e376dd7d8ca8dc",
+        "commit": "795d65bc6c033c6d97222f2683f2112631558aa2",
         "name": "esdk-settings-generator",
         "source": "git@github.com:sifive/esdk-settings-generator.git"
     },
