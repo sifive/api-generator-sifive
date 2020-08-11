@@ -41,7 +41,7 @@
         "source": "git@github.com:sifive/ldscript-generator.git"
     },
     {
-        "commit": "ee43e5e128f23ffc72e4d3163b1cef31201be8d8",
+        "commit": "a913cfa74cef13f667a88ab9bcbb4643089e8ba7",
         "name": "fpga-shells",
         "source": "git@github.com:sifive/fpga-shells.git"
     }
