@@ -30,7 +30,6 @@ global target makeBitstream plan =
   plan
 
 target runVivadoWithPlan plan tclFile =
-  def name = plan.getBitstreamPlanName
   def resources = plan.getBitstreamPlanResources
   def outputDir = plan.getBitstreamPlanOutputDir
   def designTopModule = plan.getBitstreamPlanTopModule

@@ -15,7 +15,7 @@ def getBuildTreeReportDir     buildRoot simulator programName =
   "{buildRoot.getBuildTreeSimExecuteDir simulator programName}/report"
 def getBuildTreeMCSDir        (BuildTree root) = "{root}/mcs"
 
-global def rtlTarget dut buildRoot = dut
+global def rtlTarget dut _buildRoot = dut
 
 global def compileSimTarget dut buildRoot =
   def opts = makeUserSimulationOptions "verilator" False (buildRoot.getBuildTreeSimulationDir "verilator")
@@ -76,8 +76,7 @@ tuple SimTargetOptions =
 
 global def makeSimTargetOptions simName waves =
   def coverage = False
-  def testFilter dutTest =
-    True
+  def testFilter _dutTest = True
   SimTargetOptions simName waves coverage testFilter
 
 # A target that can be used with runPlatform to run a suite of simulation tests
@@ -191,7 +190,7 @@ def simChecker =
   def name = "simultion-test-finisher-checker"
   def score = (\_ \_ 1.0)
 
-  def result dut outputs options =
+  def result _dut outputs _options =
     def statusFile =
       def result =
         def simOutputs = outputs.getSimulationOutputOutputs
@@ -228,10 +227,11 @@ def simChecker =
     testResult
 
   def reporter dut outputs options =
-    def simErr = match outputs.getSimulationOutputStderr
+    # These files are written but never read by the build itself
+    def _simErr = match outputs.getSimulationOutputStderr
       Fail e = makeBadPath e
       Pass contents = write "{options.getSimCheckerOptionsOutputDir}/sim.err" contents
-    def simOut = match outputs.getSimulationOutputStdout
+    def _simOut = match outputs.getSimulationOutputStdout
       Fail e = makeBadPath e
       Pass contents = write "{options.getSimCheckerOptionsOutputDir}/sim.out" contents
     match (result dut outputs options)

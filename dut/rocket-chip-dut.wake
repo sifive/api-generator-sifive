@@ -66,8 +66,6 @@ global def rocketChipDUTMaker dutPlan userArgs =
   def vlsiMemGen    = doVLSIMemGen dutPlan userArgs firrtlOutputs
   def vlsiROMGen    = doVLSIROMGen dutPlan userArgs rocketOutputs
 
-  def firrtlFile = rocketOutputs.getRocketChipGeneratorOutputsFirrtlFile
-  def annoFile = rocketOutputs.getRocketChipGeneratorOutputsFirrtlAnnoFile
   def objectModelResult = match rocketOutputs.getRocketChipGeneratorOutputsObjectModelFile
     None        = Pass JNull# Fail (makeError "No object model file found!")
     Some omFile = parseJSONFile omFile
@@ -146,7 +144,6 @@ def doVLSIROMGen dutPlan userArgs rocketOutputs =
 
 def doVLSIMemGen dutPlan userArgs firrtlOutputs =
   def verilogDir = userArgs.getRuntimeRocketChipDUTArgsVerilogDir
-  def firrtlVerilogOutputs = firrtlOutputs.getInternalFirrtlOutputsVsrcs
   def vlsiMemGenOutput =
     def outputConf = firrtlOutputs.getInternalFirrtlOutputsConfFile
     def outputFile =

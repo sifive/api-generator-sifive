@@ -103,9 +103,7 @@ global def makeVerilatorDUTSimulator plan =
   def coverage = plan.getVerilatorDUTSimulatorPlanCoverage
   def score  = plan.getVerilatorDUTSimulatorPlanScore
 
-  def imp dut rawCompileOptions rawExecuteOptions userOptions =
-    def filter sim = dutSimulatorNameEquals simName sim && dutSimulatorVendorEquals simVendor sim
-
+  def imp dut _rawCompileOptions rawExecuteOptions userOptions =
     def compileOutputs =
       def appendUserPlusargs = editDUTSimCompileOptionsPlusargs (_ ++ userOptions.getUserSimulationOptionsCompilePlusargs)
       def appendDUTOptions = appendDUTSimCompileOptions dut.getDUTSimCompileOptions

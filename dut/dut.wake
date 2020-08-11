@@ -1,6 +1,3 @@
-tuple Resource =
-  global Name: String
-
 tuple DUT =
   global Name:         String
   global Configs:      List String

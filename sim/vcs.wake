@@ -11,8 +11,6 @@ tuple VCSCompilePlan =
   global OutputDir:   String
   global CoverageMetrics: VCSCoverageMetrics
 
-def dir / subdir = "{dir.getPathName}/{subdir}"
-
 global def defaultVCSResources = "synopsys/vcs/M-2017.03-SP2", Nil
 
 global def makeVCSCompilePlan sourceFiles outputDir =
@@ -79,10 +77,6 @@ global def doVCSCompile options =
   def cmdline = options.compileCmdlineArgs
   def inputs = options.compileInputs
 
-  def tmpDirEnv =
-    def rawTmpDir = options.getVCSCompilePlanTmpDir
-    def tmpDir = mkdir rawTmpDir
-    "TMPDIR={relative outputDir tmpDir.getPathName}"
   def vcsJob =
     makePlan cmdline inputs
     | setPlanDirectory outputDir
@@ -189,14 +183,6 @@ tuple VCSExecuteOutputs =
   Plan_: VCSExecutePlan
   Job_:  Job
 
-target readOutput fileName =
-  def regex = regExpCat (`(.*/)?`, fileName.quote, Nil)
-  _
-  | getVCSExecuteOutputsRawOutputs
-  | filter (matches regex _.getPathName)
-  | head
-  | getOrFail "VCS: could not find {fileName}".makeError
-  | rmapPass read
 global def getVCSExecuteOutputsRawOutputs = _.getVCSExecuteOutputsJob_.getJobFailedOutputs
 global def getVCSExecuteOutputsStdout     = _.getVCSExecuteOutputsJob_.getJobStdout
 global def getVCSExecuteOutputsStderr     = _.getVCSExecuteOutputsJob_.getJobStderr

@@ -90,7 +90,6 @@ global def makeProgramCompileOptions name cflags cfiles outputDir =
   ProgramCompileOptions name cflags asFlags cfiles includeDirs sources outputDir filter
 
 global def programCompileOptionsToGCCProgramPlan outputFile plan =
-  def name        = plan.getProgramCompileOptionsName
   def cflags      = plan.getProgramCompileOptionsCFlags
   def cfiles      = plan.getProgramCompileOptionsCFiles
   def asFlags     = plan.getProgramCompileOptionsASFlags
@@ -221,7 +220,7 @@ global def makeProgramLoaderOptions filter programOptions outputDir =
 global def makePlusargProgramLoader plusarg memoryRegion score compiler =
   def name = "{plusarg}-plusarg-loader"
 
-  def editCompileOpts dut loaderOptions = (_)
+  def editCompileOpts _dut _loaderOptions = (_)
   def editExecuteOpts dut loaderOptions executeOptions =
     def outputDir = loaderOptions.getProgramLoaderOptionsOutputDir
     def programOptions = loaderOptions.getProgramLoaderOptionsProgramOptions

@@ -90,8 +90,6 @@ global def makeVCSDUTSimulator plan =
   def score  = plan.getVCSDUTSimulatorPlanScore
 
   def imp dut rawCompileOptions rawExecuteOptions userOptions =
-    def filter sim = dutSimulatorNameEquals simName sim && dutSimulatorVendorEquals simVendor sim
-
     def compileOutputs =
       def appendUserPlusargs = editDUTSimCompileOptionsPlusargs (_ ++ userOptions.getUserSimulationOptionsCompilePlusargs)
       def appendDUTOptions = appendDUTSimCompileOptions rawCompileOptions
