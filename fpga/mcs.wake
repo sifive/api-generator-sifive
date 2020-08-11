@@ -37,7 +37,9 @@ target runVivadoWithPlan plan tclFile =
   def runDir = outputDir
 
   def ffile =
+    def sort strings = sortBy (_ <~ _) strings
     map (relative runDir _.getPathName) vsrcs
+    | sort
     | catWith "\n"
     | write "{runDir}/verilog.F"
 
