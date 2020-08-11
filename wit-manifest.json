@@ -1,6 +1,6 @@
 [
     {
-        "commit": "da652642f7b1f88af7a1feaab82a81e534b2b206",
+        "commit": "4db478012c88718e51af08f706d0dde8aaf6efa5",
         "name": "freedom-metal",
         "source": "git@github.com:sifive/freedom-metal.git"
     },
@@ -10,13 +10,12 @@
         "source": "git@github.com:sifive/freedom-devicetree-tools.git"
     },
     {
-        "commit": "5ede0829b7a926ffa29d2df8238dbfe44065128c",
+        "commit": "2bdb03dbca3f77ad4c378cc1b95ab4961bc1448a",
         "name": "rocket-chip",
         "source": "git@github.com:chipsalliance/rocket-chip.git"
     },
     {
-        "//": "This commit is v0.2.1",
-        "commit": "e46103f52166bfde4ba33ff048937b896e6235d1",
+        "commit": "e135f6a013d830f34aeb1a9542f42c0aabc80813",
         "name": "api-languages-sifive",
         "source": "git@github.com:sifive/api-languages-sifive.git"
     },
