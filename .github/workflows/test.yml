@@ -1,83 +1,18 @@
 name: Test
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    env:
-      # $WIT_WORKSPACE path is relative to $GITHUB_WORKSPACE
-      WIT_WORKSPACE: wit-workspace
-
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        path: wit-packages/api-generator-sifive
-        # Fetch all history and tags
-        fetch-depth: 0
-
-    - name: 'Wit Init'
-      uses: sifive/wit/actions/wit@v0.13.1
-      with:
-        command: init
-        arguments: |
-          ${{ env.WIT_WORKSPACE }}
-          -a ./wit-packages/api-generator-sifive
-          -a git@github.com:sifive/environment-blockci-sifive.git::0.4.0
-        force_github_https: true
-
-    - name: Run tests
-      run: |
-        set -euo pipefail
-        docker run \
-          --volume="$GITHUB_WORKSPACE/$WIT_WORKSPACE:/mnt/workspace" \
-          --workdir="/mnt/workspace" \
-          --rm \
-          sifive/environment-blockci:0.4.0 \
-          api-generator-sifive/continuous-integration/run-tests.sh
-
   typecheck:
-    name: 'Wake 0.18.1 typecheck'
+    name: 'Wake typecheck'
     runs-on: ubuntu-latest
-    env:
-      # $WIT_WORKSPACE path is relative to $GITHUB_WORKSPACE
-      WIT_WORKSPACE: wit-workspace
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        path: wit-packages/api-generator-sifive
-        # Fetch all history and tags
-        fetch-depth: 0
-
-    - name: 'Wit Init'
-      uses: sifive/wit/actions/wit@v0.13.1
-      with:
-        command: init
-        arguments: |
-          ${{ env.WIT_WORKSPACE }}
-          -a ./wit-packages/api-generator-sifive
-        force_github_https: true
-
-    - name: Run wake typecheck
-      working-directory: ${{ env.WIT_WORKSPACE }}
-      run: |
-        set -euxo pipefail
-
-        # Take back ownership of wit workspace, since it was created while
-        # under a Docker container and permissions default to root.
-        uid=$(id -u)
-        gid=$(id -g)
-        sudo chown -R "$uid:$gid" .
-
-        # Install Wake
-        curl -L -o /tmp/wake.deb https://github.com/sifive/wake/releases/download/v0.18.1/ubuntu-18-04-wake_0.18.1-1_amd64.deb && \
-            sudo dpkg -i /tmp/wake.deb && \
-            rm /tmp/wake.deb
-
-        # Initialize Wake workspace
-        wake --init .
-
-        # Run a dummy target, which still triggers a compilation of Wake code.
-        wake -x Unit
-
+    - uses: sifive/wit/actions/init@v0.13.2
+    - uses: sifive/environment-blockci-sifive/actions/wake@0.7.0
