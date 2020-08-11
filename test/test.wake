@@ -1,28 +1,17 @@
-tuple Test input output result report =
-  global Input:    input
-  global Runner:   input  => output
-  global Checker:  output => result # check for pass/fail
-  global Reporter: result => report # print results
-
-global def runTest    test = test.getTestRunner   test.getTestInput
-global def checkTest  test = test.getTestChecker  test.runTest
-global def reportTest test = test.getTestReporter test.checkTest
-
-
 global def makeBlackBoxDUTHook name hook =
   def wrapper dut =
     def findOpt = find (_ ==~ name) dut.getDUTBlackBoxes
     match findOpt
-      None               = None
-      Some (Pair bbox _) = Some (hook dut)
+      None   = None
+      Some _ = Some (hook dut)
   wrapper
 
 global def makeBlackBoxHook name hook =
   def wrapper dut =
     def findOpt = find (_ ==~ name) dut.getDUTBlackBoxes
     match findOpt
-      None               = None
-      Some (Pair bbox _) = Some hook
+      None   = None
+      Some _ = Some hook
   wrapper
 
 global def makeObjectModelHook objectModelQuery hook =

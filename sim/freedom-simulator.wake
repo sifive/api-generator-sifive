@@ -28,4 +28,4 @@ global def freedomTestDriverSimCompileOpts dut =
   sourceFiles
   plusargs
 
-global def freedomTestDriverSimExecuteOpts dut = emptyDUTSimExecuteOptions
+global def freedomTestDriverSimExecuteOpts _dut = emptyDUTSimExecuteOptions

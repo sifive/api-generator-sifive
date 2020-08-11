@@ -46,11 +46,6 @@ global target getCompatibleLists dtsJSON =
   def isDevice = match _
     JObject fields = exists (matches `compatible` _.getPairFirst) fields
     _ = False
-  def getLists =
-    _
-    | getJArray
-    | getOrElse Nil
-    | mapPartial (getJArray)
   match dtsJSON.parseJSONFile
     Pass dtsJValue =
       dtsJValue
@@ -66,8 +61,6 @@ global target getCompatibleLists dtsJSON =
 
 # Return DriverImplementations available for a given DUT
 global def getDriverImplementationsForDUT dut =
-  def dts = dut.getDUTDTS
-  def omFile = dut.getDUTObjectModelFile
   def compatibleLists = getCompatibleLists dut.getDUTDTSJSON
   def getImpForCompatibleList compatibleList =
     compatibleList

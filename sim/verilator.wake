@@ -128,7 +128,6 @@ global def doVerilatorCompile options =
   def vOutputs = runVerilator options
   def outputDir = options.getVerilatorCompilePlanOutputDir
   def makeCmd =
-    def verilatorPrefix = options.getVerilatorCompilePlanPrefix
     def makeFileName = vOutputs.getVerilatorOutputsMakefile.getPathName
     "make",
     "--directory={outputDir}",
@@ -213,15 +212,6 @@ global def doVerilatorExecute options =
 tuple VerilatorExecuteOutputs =
   InputOptions_:       VerilatorExecutePlan
   Job_:                Job
-
-target readOutput fileName =
-  def regex = regExpCat (`(.*/)?`, fileName.quote, Nil)
-  _
-  | getVerilatorExecuteOutputsRawOutputs
-  | filter (matches regex _.getPathName)
-  | head
-  | getOrFail "Verilator: could not find {fileName}".makeError
-  | rmapPass read
 
 global def getVerilatorExecuteOutputsRawOutputs = _.getVerilatorExecuteOutputsJob_.getJobFailedOutputs
 global def getVerilatorExecuteOutputsStdout     = _.getVerilatorExecuteOutputsJob_.getJobStdout

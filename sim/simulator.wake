@@ -40,7 +40,7 @@ tuple SimulationOutput =
 def peelStatus = match _
     Exited a = a
     Signaled b = b
-    Aborted c = -999
+    Aborted _ = -999
 
 global def makeSimulationOutput job =
   SimulationOutput

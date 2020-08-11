@@ -103,7 +103,6 @@ global target makeFreedomBSP coreDTS customOverlay type_ prefix machineName =
   )
 
 global def generateMetalFromDts dts machineName customOverlay type_ outputDir =
-  def prefix = "{outputDir}/{machineName}"
   def bsp = makeFreedomBSP dts customOverlay type_ outputDir machineName
   def runMetalInstall bsp =
     def attributes = bsp.getFreedomBSPAttributes

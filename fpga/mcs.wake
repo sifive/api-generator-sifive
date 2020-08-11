@@ -13,12 +13,6 @@ global def makeBitstreamPlan name vendor board topModule outputDir =
   def resources = "xilinx/vivado/2018.2", Nil
   BitstreamPlan name vendor board topModule Nil outputDir Nil resources Nil
 
-# TODO - should this be moved to fpga-shells?
-def vc707migHook =
-  def name = "vc707_1gb_mig"
-  def addResources = "vivado/vc7071gmig/1.0"
-  makeBlackBoxHook name addResources
-
 global target runFPGASynthOnly plan =
     runVivadoWithPlan plan "{fpgaShellsRoot}/xilinx/common/tcl/synth-only.tcl"
 
@@ -30,7 +24,6 @@ global target makeBitstream plan =
   plan
 
 target runVivadoWithPlan plan tclFile =
-  def name = plan.getBitstreamPlanName
   def resources = plan.getBitstreamPlanResources
   def outputDir = plan.getBitstreamPlanOutputDir
   def designTopModule = plan.getBitstreamPlanTopModule

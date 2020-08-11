@@ -162,7 +162,7 @@ global def makeDUTSimExecuteOptions = DUTSimExecuteOptions _ _ Nil
 
 global def emptyDUTSimExecuteOptions = makeDUTSimExecuteOptions Nil Nil
 
-global def withDUTSimExecuteOptions dut dutSimExecuteOptions = dutSimExecuteOptions
+global def withDUTSimExecuteOptions _dut dutSimExecuteOptions = dutSimExecuteOptions
 
 global def appendDUTSimExecuteOptions (DUTSimExecuteOptions plusargs visibleFiles resources) options =
   options
