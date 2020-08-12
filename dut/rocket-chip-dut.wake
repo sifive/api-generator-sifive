@@ -188,7 +188,7 @@ target doFirrtlCompile dutPlan userArgs rocketOutputs =
     def logLevel = "info"
     def fct = "-fct", "{catWith "," customFirrtlTransforms}", Nil
     def classpath = jars | map getPathName | catWith ":"
-    "java", "-Xmx2G", "-Xss8M", "-cp", classpath, main,
+    "java", "-Xmx4G", "-Xss8M", "-cp", classpath, main,
     "-i",             firrtlFile.getPathName,
     "-tn",            topName,
     "-td",            verilogDir.getPathName,
