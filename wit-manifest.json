@@ -36,7 +36,7 @@
         "source": "git@github.com:sifive/esdk-settings-generator.git"
     },
     {
-        "commit": "c3c867cc55aaeaaeee3ca2c49092ffd87aa9b01c",
+        "commit": "64d212b6c579da1a5e211fba41de2926ff880069",
         "name": "ldscript-generator",
         "source": "git@github.com:sifive/ldscript-generator.git"
     },
