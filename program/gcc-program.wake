@@ -63,6 +63,7 @@ global def makeGCCProgram plan =
       Some l =
         ("-T{l.getPathName}", "-Wl,--start-group", plan.getGCCProgramPlanLDFlags)
         ++ ("-Wl,--end-group", Nil)
+        ++ ("-Wl,--gc-sections", Nil)
     gcc, cFlags ++ (map getPathName plan.getGCCProgramPlanCFiles) ++ asFlags ++ lFlags
   def jobInputs =
     def linkerScript = match plan.getGCCProgramPlanLinkerScript
