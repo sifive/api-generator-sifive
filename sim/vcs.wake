@@ -11,7 +11,7 @@ tuple VCSCompilePlan =
   global OutputDir:   String
   global CoverageMetrics: VCSCoverageMetrics
 
-global def defaultVCSResources = "synopsys/vcs/M-2017.03-SP2", Nil
+global def defaultVCSResources = "synopsys/vcs/Q-2020.03", Nil
 
 global def makeVCSCompilePlan sourceFiles outputDir =
   VCSCompilePlan
