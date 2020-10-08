@@ -43,6 +43,7 @@ def toVerilatorSimCompilePlan privateOpts outputDir coverage =
   def sourceFiles  = dutOpts.getDUTSimCompileOptionsSourceFiles
   def plusargs     = dutOpts.getDUTSimCompileOptionsPlusargs
   def resources    = dutOpts.getDUTSimCompileOptionsResources
+  def visibleFiles = dutOpts.getDUTSimCompileOptionsVisibleFiles
 
   def makeArgs     = privateOpts.getPrivateVerilatorDUTSimCompileOptionsMakeArgs
   def extraArgs    = privateOpts.getPrivateVerilatorDUTSimCompileOptionsExtraArgs
@@ -64,6 +65,7 @@ def toVerilatorSimCompilePlan privateOpts outputDir coverage =
   | setVerilatorCompilePlanPlusargs    plusargs
   | setVerilatorCompilePlanPrefix      prefix
   | setVerilatorCompilePlanResources   resources
+  | setVerilatorCompilePlanVisible     visibleFiles
   | withCoverage                       coverage
 
 global topic verilatorDUTSimCompileOptionsHooks : DUT => Option (PrivateVerilatorDUTSimCompileOptions => PrivateVerilatorDUTSimCompileOptions)

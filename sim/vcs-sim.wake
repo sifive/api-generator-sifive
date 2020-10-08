@@ -33,6 +33,7 @@ def toVCSSimCompilePlan privateOpts outputDir coverage =
   def plusargs     = dutOpts.getDUTSimCompileOptionsPlusargs
   def extraArgs    = privateOpts.getPrivateVCSDUTSimCompileOptionsExtraArgs
   def extraLibraryDirs = privateOpts.getPrivateVCSDUTSimCompileOptionsLibraryDirs
+  def visibleFiles = dutOpts.getDUTSimCompileOptionsVisibleFiles
   def withCoverage coverageEnabled plan =
     def editFn oldMetrics =
       if coverageEnabled then defaultCoverageMetrics else oldMetrics
@@ -45,6 +46,7 @@ def toVCSSimCompilePlan privateOpts outputDir coverage =
   | setVCSCompilePlanLibraryDirs (libraryDirs ++ extraLibraryDirs)
   | setVCSCompilePlanDefines     defines
   | setVCSCompilePlanPlusargs    plusargs
+  | setVCSCompilePlanVisible     visibleFiles
   | withCoverage                 coverage
 
 tuple PrivateVCSDUTSimExecuteOptions =
