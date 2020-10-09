@@ -124,9 +124,14 @@ tuple DUTSimCompileOptions =
   global SourceFiles:    List Path
   global Plusargs:       List NamedArg
   global Resources:      List String # resources to pass to the simulator `Plan`
+  # Files that should be visible to the simulator compiler but not passed in as
+  # direct source files. This should generally be used in conjuction with
+  # IncludeDirs and LibraryDirs in order to make files within those directories
+  # visible to the simulator compiler.
+  global VisibleFiles:   List Path
 
 global def makeDUTSimCompileOptions includeDirs defines sourceFiles plusargs =
-  DUTSimCompileOptions includeDirs Nil defines sourceFiles plusargs Nil
+  DUTSimCompileOptions includeDirs Nil defines sourceFiles plusargs Nil Nil
 
 global def emptyDUTSimCompileOptions = makeDUTSimCompileOptions Nil Nil Nil Nil
 
@@ -134,7 +139,7 @@ global def withDUTSimCompileOptions dut dutSimCompileOptions =
   dutSimCompileOptions
   | editDUTSimCompileOptionsSourceFiles (dut.getDUTVsrcs ++ _)
 
-global def appendDUTSimCompileOptions (DUTSimCompileOptions includes libraryDirs defines srcs plusargs resources) options =
+global def appendDUTSimCompileOptions (DUTSimCompileOptions includes libraryDirs defines srcs plusargs resources visible) options =
   options
   | editDUTSimCompileOptionsIncludeDirs  (_ ++ includes)
   | editDUTSimCompileOptionsLibraryDirs  (_ ++ libraryDirs)
@@ -142,8 +147,9 @@ global def appendDUTSimCompileOptions (DUTSimCompileOptions includes libraryDirs
   | editDUTSimCompileOptionsSourceFiles  (_ ++ srcs)
   | editDUTSimCompileOptionsPlusargs     (_ ++ plusargs)
   | editDUTSimCompileOptionsResources    (_ ++ resources)
+  | editDUTSimCompileOptionsVisibleFiles (_ ++ visible)
 
-global def prependDUTSimCompileOptions (DUTSimCompileOptions includes libraryDirs defines srcs plusargs resources) options =
+global def prependDUTSimCompileOptions (DUTSimCompileOptions includes libraryDirs defines srcs plusargs resources visible) options =
   options
   | editDUTSimCompileOptionsIncludeDirs  (includes ++ _)
   | editDUTSimCompileOptionsLibraryDirs  (libraryDirs ++ _)
@@ -151,6 +157,7 @@ global def prependDUTSimCompileOptions (DUTSimCompileOptions includes libraryDir
   | editDUTSimCompileOptionsSourceFiles  (srcs ++ _)
   | editDUTSimCompileOptionsPlusargs     (plusargs ++ _)
   | editDUTSimCompileOptionsResources    (resources ++ _)
+  | editDUTSimCompileOptionsVisibleFiles (visible ++ _)
 
 
 tuple DUTSimExecuteOptions =

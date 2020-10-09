@@ -6,6 +6,7 @@ tuple XceliumCompilePlan =
   global SourceFiles: List Path
   global Plusargs:    List NamedArg
   global ExtraArgs:   List NamedArg
+  global Visible:     List Path
   global FHomeDir:    String # func from output dir to home dir
   global OutputDir:   String
   global CoverageMetrics: XceliumCoverageMetrics
@@ -21,6 +22,7 @@ global def makeXceliumCompilePlan sourceFiles outputDir =
   sourceFiles        # Files
   Nil                # Plusargs
   Nil                # ExtraArgs
+  Nil                # Visible
   "{outputDir}/home" # FHomeDir
   outputDir          # OutputDir
   makeXceliumCoverageMetrics # CoverageMetrics
@@ -62,12 +64,13 @@ def compileInputs options =
   def libraryDirs  = options.getXceliumCompilePlanLibraryDirs
   def srcFiles     = options.getXceliumCompilePlanSourceFiles
   def homeDir      = options.getXceliumCompilePlanFHomeDir
+  def visibleFiles = options.getXceliumCompilePlanVisible
 
   def includeSources = map (sources _ `.*`) includeDirs | flatten
   def librarySources = map (sources _ `.*`) libraryDirs | flatten
   def homeSources = sources homeDir `.*`
 
-  source xrunWrapperScript, mkdir outputDir, includeSources ++ librarySources ++ srcFiles ++ homeSources
+  source xrunWrapperScript, mkdir outputDir, includeSources ++ librarySources ++ srcFiles ++ homeSources ++ visibleFiles
 
 global def doXceliumCompile options =
   def outputDir = options.getXceliumCompilePlanOutputDir

@@ -33,6 +33,7 @@ def toXceliumSimCompilePlan privateOpts outputDir coverage =
   def sourceFiles    = dutOpts.getDUTSimCompileOptionsSourceFiles
   def plusargs       = dutOpts.getDUTSimCompileOptionsPlusargs
   def resources      = dutOpts.getDUTSimCompileOptionsResources
+  def visibleFiles   = dutOpts.getDUTSimCompileOptionsVisibleFiles
   def extraArgs      = privateOpts.getPrivateXceliumDUTSimCompileOptionsExtraArgs
   def extraLibraryDirs = privateOpts.getPrivateXceliumDUTSimCompileOptionsLibraryDirs
   def withCoverage coverageEnabled plan =
@@ -47,6 +48,7 @@ def toXceliumSimCompilePlan privateOpts outputDir coverage =
   | setXceliumCompilePlanLibraryDirs    (libraryDirs ++ extraLibraryDirs)
   | setXceliumCompilePlanDefines        defines
   | setXceliumCompilePlanPlusargs       plusargs
+  | setXceliumCompilePlanVisible        visibleFiles
   | withCoverage                        coverage
 
 
