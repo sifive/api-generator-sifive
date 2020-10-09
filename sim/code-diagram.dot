@@ -1,0 +1,140 @@
+digraph G {
+    rankdir=LR
+
+    subgraph cluster_vcs {
+        label = "vcs.wake"
+        color = gray
+
+        // tuples/types
+        node [shape=box]
+        VCSCompilePlan
+        VCSExecutePlan
+        VCSCompileOutputs
+        VCSExecuteOutputs
+
+        // functions
+        node [shape=ellipse]
+        makeVCSCompilePlan [label="global makeVCSCompilePlan"]
+        makeVCSExecutePlan [label="global makeVCSExecutePlan"]
+        doVCSCompile [label="global doVCSCompile"]
+        doVCSExecute [label="global doVCSExecute"]
+
+        // edges
+        makeVCSCompilePlan -> VCSCompilePlan
+        makeVCSExecutePlan -> VCSExecutePlan
+
+        doVCSCompile -> VCSCompilePlan
+        doVCSCompile -> VCSCompileOutputs
+
+        doVCSExecute -> VCSExecutePlan
+        doVCSExecute -> VCSExecuteOutputs
+    }
+
+    subgraph cluster_vcs_sim {
+        label = "vcs-sim.wake"
+        color = gray
+
+        // tuples/types
+        node [shape=box]
+        VCSDUTSimulatorPlan
+        PrivateVCSDUTSimCompileOptions
+        PrivateVCSDUTSimExecuteOptions
+
+        // functions
+        node [shape=ellipse]
+        freedomVCSDUTSimulator
+        freedomVCSWavesDUTSimulator
+        makeFreedomVCSDUTSimulator
+        makeVCSDUTSimulator [label="global makeVCSDUTSimulator"]
+        makeVCSDUTSimulatorPlan [label="global makeVCSDUTSimulatorPlan"]
+        toVCSSimCompilePlan
+        toVCSSimExecutePlan
+        vcsCompileOptsExtract
+
+        // edges
+        toVCSSimCompilePlan -> {PrivateVCSDUTSimCompileOptions; makeVCSCompilePlan}
+
+        toVCSSimExecutePlan -> {PrivateVCSDUTSimExecuteOptions; makeVCSExecutePlan}
+
+        makeVCSDUTSimulatorPlan -> VCSDUTSimulatorPlan
+        makeVCSDUTSimulator -> {
+            VCSDUTSimulatorPlan;
+            toVCSSimCompilePlan;
+            toVCSSimExecutePlan;
+        }
+
+        makeFreedomVCSDUTSimulator -> {
+            makeVCSDUTSimulatorPlan;
+            makeVCSDUTSimulator;
+            vcsCompileOptsExtract
+        }
+
+        freedomVCSDUTSimulator -> makeFreedomVCSDUTSimulator
+        freedomVCSWavesDUTSimulator -> makeFreedomVCSDUTSimulator
+    }
+
+    subgraph cluster_dut_simulator {
+        label = "dut-simulator.wake"
+        color = gray
+
+        // tuples/types
+        node [shape=box]
+        DUTSimCompileOptions
+        DUTSimExecuteOptions
+        DUTSimulationOptions
+        DUTSimulator
+        DUTSimulatorPlan
+        UserSimulationOptions
+        SimulationOutput
+
+        // functions
+        node [shape=ellipse]
+        dutSimulators [label="global topic dutSimulators"]
+        makeDUTSimulator [label="global makeDUTSimulator"]
+        makeDUTSimulatorPlan [label="global makeDUTSimulatorPlan"]
+        makeUserSimulationOptions [label="global makeUserSimulationOptions"]
+        simulateDUT [label="global simulateDUT"]
+
+        // edges
+        DUTSimulatorPlan -> {
+            DUTSimCompileOptions;
+            DUTSimExecuteOptions;
+            UserSimulationOptions;
+            SimulationOutput
+        }
+        DUTSimulator -> {
+            DUTSimCompileOptions;
+            DUTSimExecuteOptions;
+            UserSimulationOptions;
+            SimulationOutput
+        }
+        DUTSimulationOptions -> {DUTSimCompileOptions; DUTSimExecuteOptions}
+        dutSimulators -> DUTSimulator
+        makeDUTSimulator -> {DUTSimulatorPlan; DUTSimulator}
+        makeDUTSimulatorPlan -> DUTSimulatorPlan
+        makeUserSimulationOptions -> UserSimulationOptions
+        simulateDUT -> {DUTSimulationOptions; UserSimulationOptions; dutSimulators}
+    }
+
+    subgraph cluster_top {
+        label = "top.wake"
+        color = gray
+
+        // tuples/types
+        node [shape=box]
+
+        // functions
+        node [shape=ellipse]
+        singleSimOutput
+    }
+
+    // edges
+    PrivateVCSDUTSimCompileOptions -> DUTSimCompileOptions
+    PrivateVCSDUTSimExecuteOptions -> DUTSimExecuteOptions
+    singleSimOutput -> {makeUserSimulationOptions; simulateDUT}
+    makeVCSDUTSimulator -> DUTSimulator
+    makeVCSDUTSimulator -> makeDUTSimulatorPlan
+    makeVCSDUTSimulator -> makeDUTSimulator
+    freedomVCSDUTSimulator -> dutSimulators
+    freedomVCSWavesDUTSimulator -> dutSimulators
+}

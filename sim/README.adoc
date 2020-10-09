@@ -67,3 +67,18 @@ to be like a method defined on an object.
 This file describes the primary data types that the build rules outside of this directory should depend on.
 These types are agnostic to the specific tool
 and are meant to abstract over the generic concepts of compiling and running HDL simulators.
+
+
+== Diagram of wake code dependencies
+
+.Diagram of wake code dependencies
+image::code-diagram.svg[Diagram of wake code dependencies]
+
+Note that this diagram may not be complete or correct.
+The source file for this image is located in this directory,
+and the image may be regenerated with the GraphViz `dot` program with the following command:
+
+[source,shell]
+----
+$ dot -Tsvg code-diagram.dot -o code-diagram.svg
+----
