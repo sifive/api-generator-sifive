@@ -1,6 +1,6 @@
 [
     {
-        "commit": "4db478012c88718e51af08f706d0dde8aaf6efa5",
+        "commit": "3aef5efb29412cceab61e5911ca82cf873557497",
         "name": "freedom-metal",
         "source": "git@github.com:sifive/freedom-metal.git"
     },
@@ -30,7 +30,7 @@
         "source": "git@github.com:sifive/esdk-settings-generator.git"
     },
     {
-        "commit": "64d212b6c579da1a5e211fba41de2926ff880069",
+        "commit": "24a49b585207063e863267d3ece8a287dcf1b2d1",
         "name": "ldscript-generator",
         "source": "git@github.com:sifive/ldscript-generator.git"
     },
