@@ -20,7 +20,7 @@
         "source": "git@github.com:sifive/api-languages-sifive.git"
     },
     {
-        "commit": "6b8201670e686277f2e3e8af2d5ef78d42900b13",
+        "commit": "7bababb49f38af447af54491eae6e562fe82c92c",
         "name": "devicetree-overlay-generator",
         "source": "git@github.com:sifive/devicetree-overlay-generator.git"
     },
