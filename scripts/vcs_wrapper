@@ -19,6 +19,7 @@ filelists="$WAKE_IP_RESOURCE_FILELISTS"
 filelist_args=( )
 for filelist in $filelists; do
  filelist_args+=(-F "$filelist")
+done
 
 libraries="$WAKE_IP_RESOURCE_LIBRARIES"
 library_args=( )
